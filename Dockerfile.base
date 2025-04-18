@@ -1,0 +1,49 @@
+# This is for SDV-Runtime running with VSS 4.0
+
+# This is expected to be executed in the kuksa.val top-level directory
+# You need to run build-all-targets.sh first, as this docker file just
+# collects the artifacts
+
+FROM python:3.10-bookworm AS python-builder
+
+WORKDIR /app/python-packages
+
+RUN apt-get update && apt-get install -y git
+
+RUN git clone --recurse-submodules --depth 1 --branch v4.0  https://github.com/COVESA/vehicle_signal_specification.git \
+    && git clone --depth 1 --branch v0.7.2 https://github.com/eclipse-velocitas/vehicle-model-generator.git
+
+COPY requirements.txt .
+
+ENV PYTHONPATH="/app/python-packages/:${PYTHONPATH}"
+
+RUN pip install --no-cache-dir --target /app/python-packages/ -r requirements.txt \
+    && cd vehicle_signal_specification/ \
+    && rm -rf .git docs-gen/ \
+    && cd vss-tools/ \
+    && python vspec2json.py -I ../spec -u ../spec/units.yaml ../spec/VehicleSignalSpecification.vspec vss.json \
+    && mv vss.json ../../vehicle-model-generator/ \
+    && cd ../../vehicle-model-generator/ \
+    && cp -r src/velocitas/ /app/python-packages/velocitas/ \
+    && python src/velocitas/model_generator/cli.py vss.json  -I ../vehicle_signal_specification/spec -u ../vehicle_signal_specification/spec/units.yaml \
+    && mv ./gen_model/vehicle /app/python-packages/ \
+    && cp -r /app/python-packages/vehicle /app/python-packages/std_vehicle
+
+FROM node:18.20.4-bookworm AS node-builder
+
+WORKDIR /app/node
+
+RUN npm install -g pkg
+
+COPY Kit-Manager /app/node/kit-manager/
+
+RUN cd /app/node/kit-manager/ && npm install \
+    && pkg -t node18-linux-arm64,node18-linux-x64 src/index.js
+
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+COPY --from=python-builder /app/python-packages/ /app/python-packages/
+
+COPY --from=node-builder /app/node /app/node/

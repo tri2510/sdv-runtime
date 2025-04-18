@@ -1,0 +1,13 @@
+dist/
+__pycache__
+databroker-cli/thirdparty
+.venv/
+target/
+.vscode/
+mock/test_add.json
+mock/quick_test.py
+mock/test_remove.json
+mock/mock_service.log
+mock_service.log
+.vssclient_history
+dev.sh

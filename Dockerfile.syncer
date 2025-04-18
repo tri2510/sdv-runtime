@@ -1,0 +1,63 @@
+FROM python:3.10-bookworm AS builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y git
+
+RUN git clone --recurse-submodules --depth 1 --branch v3.0  https://github.com/COVESA/vehicle_signal_specification.git \
+    && git clone --depth 1 --branch v0.4.0 https://github.com/eclipse-velocitas/vehicle-model-generator.git \
+    && mkdir python-packages
+
+COPY requirements.txt .
+
+ENV PYTHONPATH="/app/python-packages/:${PYTHONPATH}"
+
+RUN pip install --no-cache-dir --target /app/python-packages/ -r requirements.txt \
+    && cd vehicle_signal_specification/ \
+    && rm -rf .git \
+    && cd vss-tools/ \
+    && python vspec2json.py -I ../spec ../spec/VehicleSignalSpecification.vspec vss.json \
+    && mv vss.json ../../vehicle-model-generator/ \
+    && cd ../../vehicle-model-generator/ \
+    && python gen_vehicle_model.py -I ../vehicle_signal_specification/spec vss.json \
+    && mv ./gen_model/vehicle /app/python-packages/
+
+COPY /kuksa-syncer ./kuksa-syncer
+
+# ARM64 is a statically linked GRPC build
+FROM ubuntu:22.04 AS target-amd64
+ENV BUILDTARGET="x86_64-unknown-linux-musl"
+
+RUN groupadd -r sdvr && useradd -r -g sdvr dev \
+    && mkdir /home/dev/ && chown -R dev:sdvr /home/dev/ \
+    && apt-get update && apt-get install -y --no-install-recommends python3 \
+    ca-certificates python-is-python3 nano \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /app/*
+
+FROM ubuntu:22.04 AS target-arm64
+ENV BUILDTARGET="aarch64-unknown-linux-musl"
+
+RUN groupadd -r sdvr && useradd -r -g sdvr dev \
+    && mkdir /home/dev/ && chown -R dev:sdvr /home/dev/ \
+    && apt-get update && apt-get install -y --no-install-recommends python3 \
+    ca-certificates python-is-python3 nano \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /app/*
+
+FROM target-$TARGETARCH AS target
+ARG TARGETARCH
+
+WORKDIR /home/dev/
+
+COPY --from=builder --chown=dev:sdvr --chmod=0755 /app /home/dev/
+
+ENV PYTHONPATH="/home/dev/python-packages/:${PYTHONPATH}"
+
+RUN ln -s /home/dev/python-packages/velocitas_sdk /home/dev/python-packages/sdv
+
+USER dev
+
+CMD ["sh", "-c", "python kuksa-syncer/syncer.py || tail -f /dev/null"]
+
+
