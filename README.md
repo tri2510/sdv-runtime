@@ -49,7 +49,7 @@ docker buildx create --driver docker-container --driver-opt network=host --drive
 
 docker buildx use mybuilder
 
-docker buildx build --push --platform linux/amd64,linux/arm64 -t boschvn/sdv-runtime:latest -f Dockerfile .
+docker buildx build --push --platform linux/amd64,linux/arm64 -t eclipse-autowrx/sdv-runtime:latest -f Dockerfile .
 ```
 
 If you're outside of Bosch's enterprise network, you can skip the `http_proxy https_proxy` driver option. Otherwise, make sure you set up your local proxy beforehand.
@@ -69,7 +69,7 @@ docker buildx build --platform linux/amd64 -t sdv-runtime:latest -f Dockerfile .
 **Default:** the Databroker will be running in insecure mode (no TLS) and the Syncer will connect to https://kit.digitalauto.tech .
 
 ```
-docker run -d --name sdv-runtime boschvn/sdv-runtime:latest
+docker run -d --name sdv-runtime eclipse-autowrx/sdv-runtime:latest
 ```
 
 > Tip: If you want to use kuksa-client to interact with the databroker from outside the container, you can add port forwarding in the run command like this `-p 55555:55555`.
@@ -83,7 +83,7 @@ docker run -d --name sdv-runtime boschvn/sdv-runtime:latest
 For now, only https://kit.digitalauto.tech works (A `localhost` option is in development).
 
 ```
-docker run -d --name sdv-runtime -e SYNCER_SERVER_URL="example.com" boschvn/sdv-runtime:latest
+docker run -d --name sdv-runtime -e SYNCER_SERVER_URL="example.com" eclipse-autowrx/sdv-runtime:latest
 ```
 
 #### Arguments for Kuksa databroker
@@ -95,7 +95,7 @@ For all Kuksa databroker commands, see [Kuksa Databroker docs](https://github.co
 Below is an example of using the insecure mode:
 
 ```
-docker run -d --name sdv-runtime -e DATABROKER_ARGS="--insecure" boschvn/sdv-runtime:latest
+docker run -d --name sdv-runtime -e DATABROKER_ARGS="--insecure" eclipse-autowrx/sdv-runtime:latest
 ```
 
 #### Arguments for setting runtime name
@@ -105,7 +105,7 @@ docker run -d --name sdv-runtime -e DATABROKER_ARGS="--insecure" boschvn/sdv-run
 The name for the runtime will always follow this format: "RunTime-$RUNTIME_NAME-PID"
 
 ```
-docker run -d --name sdv-runtime -e RUNTIME_NAME="CustomName" boschvn/sdv-runtime:latest
+docker run -d --name sdv-runtime -e RUNTIME_NAME="CustomName" eclipse-autowrx/sdv-runtime:latest
 ```
 
 #### Arguments for generating vehicle model
@@ -115,7 +115,7 @@ docker run -d --name sdv-runtime -e RUNTIME_NAME="CustomName" boschvn/sdv-runtim
 To do: Merge the two environment variables into one for simplicity and write a quick guide of how to create a custom VSS.json file.
 
 ```
-docker run -d -v /path/to/custom-vss.json:/home/dev/ws/custom-vss.json -e KUKSA_DATABROKER_METADATA_FILE=/home/dev/ws/custom-vss.json -e VSS_DATA=/home/dev/ws/custom-vss.json --name sdv-runtime boschvn/sdv-runtime:latest
+docker run -d -v /path/to/custom-vss.json:/home/dev/ws/custom-vss.json -e KUKSA_DATABROKER_METADATA_FILE=/home/dev/ws/custom-vss.json -e VSS_DATA=/home/dev/ws/custom-vss.json --name sdv-runtime eclipse-autowrx/sdv-runtime:latest
 ```
 
 Upon successful model generation, the logs should output something like this:
@@ -143,7 +143,7 @@ Connected to Kit Server
 > Note: By default, if no argument for MOCK_SIGNAL is specified, the pre-defined signals in `mock/signals.json` will be used by `mock/mockprovider.py`.
 
 ```
-docker run -v /path/to/custom-signals.json:/home/dev/signals.json -e MOCK_SIGNAL=/home/dev/signals.json --name sdv-runtime  boschvn/sdv-runtime:latest
+docker run -v /path/to/custom-signals.json:/home/dev/signals.json -e MOCK_SIGNAL=/home/dev/signals.json --name sdv-runtime  eclipse-autowrx/sdv-runtime:latest
 ```
 
 The json file that you mount to the container should follow the same format as `mock/signals.json`, a quick preview is show below:
@@ -196,7 +196,7 @@ docker build -t sdv-runtime:v3.1.1 -f Dockerfile.vss3 .
     - Run the `sdv-runtime` container with the following command: 
 
     ```
-    docker run -d --name sdv-runtime  -p 3090:3090 -e SYNCER_SERVER_URL="http://localhost:3090" boschvn/sdv-runtime:latest
+    docker run -d --name sdv-runtime  -p 3090:3090 -e SYNCER_SERVER_URL="http://localhost:3090" eclipse-autowrx/sdv-runtime:latest
     ```
 
     - Go back to `Dashboard` and you should be able to select the container running on your local machine.
