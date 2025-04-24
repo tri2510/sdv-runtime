@@ -11,6 +11,11 @@ on:
 jobs:
   retag-as-latest:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
 
     steps:
       - name: Log in to GitHub Container Registry
