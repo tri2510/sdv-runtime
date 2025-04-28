@@ -50,7 +50,7 @@ docker run -d -e RUNTIME_NAME="MyRuntimeName" -e SYNCER_SERVER_URL="http://local
 
 
 
-# How to build a docker image
+# How to build docker image
 
 > Info: Instructions below are for setting up the environment *from scratch* in a CI/CD pipeline. If you only want to build and test the Docker image, go to [Build and push Docker image](#build-and-push-docker-image).
 
