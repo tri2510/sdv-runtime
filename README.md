@@ -19,7 +19,7 @@ When you run this Docker container, all the tools mentioned above will be ready 
 # How to run a runtime
 
 ```
-docker run -d -e RUNTIME_NAME="MyRuntimeName" eclipse-autowrx/sdv-runtime:latest
+docker run -d -e RUNTIME_NAME="MyRuntimeName" ghcr.io/eclipse-autowrx/sdv-runtime:latest
 ```
 
 ### Arguments for setting runtime name
@@ -29,7 +29,7 @@ docker run -d -e RUNTIME_NAME="MyRuntimeName" eclipse-autowrx/sdv-runtime:latest
 To use `kuksa-client` to interact with the data broker from outside the container, add port forwarding to the run command like this:
 
 ```
-docker run -d -e RUNTIME_NAME="MyRuntimeName" -p 55555:55555 eclipse-autowrx/sdv-runtime:latest
+docker run -d -e RUNTIME_NAME="MyRuntimeName" -p 55555:55555 ghcr.io/eclipse-autowrx/sdv-runtime:latest
 ```
 
 
@@ -38,12 +38,12 @@ docker run -d -e RUNTIME_NAME="MyRuntimeName" -p 55555:55555 eclipse-autowrx/sdv
 Default value is https://kit.digitalauto.tech. Your can change it to another runtime manager server
 
 ```
-docker run -d -e RUNTIME_NAME="MyRuntimeName" -e SYNCER_SERVER_URL="YOUR_SERVER" eclipse-autowrx/sdv-runtime:latest
+docker run -d -e RUNTIME_NAME="MyRuntimeName" -e SYNCER_SERVER_URL="YOUR_SERVER" ghcr.io/eclipse-autowrx/sdv-runtime:latest
 ```
 
 - Run your runtime with the local self manager. In this case everything stay in localhost, no external connection.
 ```
-docker run -d -e RUNTIME_NAME="MyRuntimeName" -e SYNCER_SERVER_URL="http://localhost:3090" -p 3090:3090 eclipse-autowrx/sdv-runtime:latest
+docker run -d -e RUNTIME_NAME="MyRuntimeName" -e SYNCER_SERVER_URL="http://localhost:3090" -p 3090:3090 ghcr.io/eclipse-autowrx/sdv-runtime:latest
 ```
 
 # How to build a docker image
