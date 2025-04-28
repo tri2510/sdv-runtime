@@ -14,14 +14,9 @@ Since it is a docker container, it can run on cloud, your PC or even on rapsberr
 - [Kit Manager](kit-manager/)
 - [Python](https://www.python.org/downloads/release/python-3100/) - `3.10`
 
-When you run this docker container, you have all above tool ready to use, and be connected to playground natively. Then you can:
-- Developer QM app on the playground and run the code
-- Developer the app locally with VS code or other editors.
-- Developer can can connect with 3rd tool via port 55555.
+When you run this Docker container, all the tools mentioned above will be ready to use, and you will be connected to the playground natively.
 
 # How to run a runtime
-
-**Default:** the Databroker will be running in insecure mode (no TLS) and the Syncer will connect to https://kit.digitalauto.tech .
 
 ```
 docker run -d -e RUNTIME_NAME="MyRuntimeName" eclipse-autowrx/sdv-runtime:latest
@@ -31,7 +26,8 @@ docker run -d -e RUNTIME_NAME="MyRuntimeName" eclipse-autowrx/sdv-runtime:latest
 `$RUNTIME_NAME`: this is the ID to add your runtime to playground.digital.auto.
 
 ### Forward Kuksa port
-If you want to use kuksa-client to interact with the databroker from outside the container, you can add port forwarding in the run command like this:.
+To use `kuksa-client` to interact with the data broker from outside the container, add port forwarding to the run command like this:
+
 ```
 docker run -d -e RUNTIME_NAME="MyRuntimeName" -p 55555:55555 eclipse-autowrx/sdv-runtime:latest
 ```
