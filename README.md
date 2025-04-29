@@ -24,6 +24,8 @@ When you run this Docker container, all the tools mentioned above will be ready 
 docker run -d -e RUNTIME_NAME="MyRuntimeName" ghcr.io/eclipse-autowrx/sdv-runtime:latest
 ```
 
+Video instruction: [https://youtu.be/HQrsGY7XLU4](https://youtu.be/HQrsGY7XLU4)
+
 ### Arguments for setting runtime name
 `$RUNTIME_NAME`: this is the ID to add your runtime to playground.digital.auto.
 
