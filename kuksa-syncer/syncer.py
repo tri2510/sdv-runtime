@@ -37,6 +37,19 @@ client = VSSClient(BORKER_IP, BROKER_PORT)
 
 mock_signal_path = "/home/dev/ws/mock/signals.json"
 
+def is_process_running_nix(process_name):
+    """Check if a process with the given name is running on Linux/macOS."""
+    try:
+        # Using pgrep (more direct)
+        process = subprocess.Popen(['pgrep', '-x', process_name], stdout=subprocess.PIPE)
+        output, error = process.communicate()
+        return len(output) > 0
+    except FileNotFoundError:
+        # pgrep might not be available, try ps
+        process = subprocess.Popen(['ps', '-ax', '-o', 'comm'], stdout=subprocess.PIPE)
+        output, error = process.communicate()
+        return process_name.lower().encode() in output.lower()
+
 async def send_app_run_reply(master_id, is_done, retcode, content):
     await sio.emit("messageToKit-kitReply", {
         "kit_id": CLIENT_ID,
@@ -150,8 +163,8 @@ async def messageToKit(data):
     if data["cmd"] == "set_mock_signals":
         modifyMockSignal(data["data"])
         mock_signal = listMockSignal()
-        print("After modifying:")
-        print(mock_signal)
+        # print("After modifying:")
+        # print(mock_signal)
         restartMockProvider()
         await sio.emit("messageToKit-kitReply", {
             "kit_id": CLIENT_ID,
@@ -195,8 +208,26 @@ async def messageToKit(data):
         # print(type(data["data"]))
 
         try:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "revert_vehicle_model",
+                "result": "Start to rebuild vehicle model...\r\n"
+            })
+            stopMockService()
             generate_vehicle_model(json.dumps(data["data"]))
-            restartMockProvider()
+            
+            time.sleep(0.5)
+            # Check is databroker app running or not
+            if is_process_running_nix("databroker"):
+                print("databroker is running")
+            else:
+                print("databroker is not running")
+                raise Exception("Databroker is not running")
+
+            modifyMockSignal([""])
+            time.sleep(0.5)
+            startMockService()
             await sio.emit("messageToKit-kitReply", {
                 "kit_id": CLIENT_ID,
                 "request_from": data["request_from"],
@@ -206,17 +237,27 @@ async def messageToKit(data):
             return 0
         except Exception as e:
             # print("generate_vehicle_model Error: ", str(e))
+            
             await sio.emit("messageToKit-kitReply", {
                 "kit_id": CLIENT_ID,
                 "request_from": data["request_from"],
                 "cmd": "generate_vehicle_model",
-                "result": "generate_vehicle_model Failed: " + str(e) + "\r\n"
+                "result": "Error: generate_vehicle_model Failed: " + str(e) + "\r\nRevert back to default model" 
             })
+            revert_vehicle_model();
             return 0
 
     if data["cmd"] == "revert_vehicle_model":
+        await sio.emit("messageToKit-kitReply", {
+            "kit_id": CLIENT_ID,
+            "request_from": data["request_from"],
+            "cmd": "revert_vehicle_model",
+            "result": "Start to revert to default vehicle model...\r\n"
+        })
+        stopMockService()
         revert_vehicle_model()
-        restartMockProvider()
+        time.sleep(0.5)
+        startMockService()
         await sio.emit("messageToKit-kitReply", {
             "kit_id": CLIENT_ID,
             "request_from": data["request_from"],
@@ -227,7 +268,7 @@ async def messageToKit(data):
     
     if data["cmd"] == "list_python_packages":
         pkgs = pkg_manager.listPkg()
-        print(pkgs,flush=True)
+        # print(pkgs,flush=True)
         await sio.emit("messageToKit-kitReply", {
             "kit_id": CLIENT_ID,
             "request_from": data["request_from"],
@@ -246,7 +287,7 @@ async def messageToKit(data):
             "result": "Installing",
             "data": f"Installing packages: {msg}\n"
         })
-        print(msg,flush=True)
+        # print(msg,flush=True)
         response = await pkg_manager.installPkg(data["data"])
         # await asyncio.sleep(1)
         await sio.emit("messageToKit-kitReply", {
@@ -398,7 +439,7 @@ def listMockSignal():
     else:
         print("No signals found.",flush=True)
 
-def restartMockProvider():
+def stopMockService():
     pid_file = "/home/dev/mockprovider.pid"
     if os.path.exists(pid_file):
         with open(pid_file, "r") as f:
@@ -410,17 +451,22 @@ def restartMockProvider():
         except ProcessLookupError:
             print(f"No process found with PID {pid}.", flush=True)
             pass
-
-        time.sleep(0.5)
-
-        print("Restarting the script...", flush=True)
-        subprocess.Popen(["python", "/home/dev/ws/mock/mockprovider.py"])
-        print("Script restarted.", flush=True)
     else:
-        print(f"mockprovider pid file at '{pid_file}' does not exist. Starting the script directly.", flush=True)
-        # If the .pid file doesn't exist, just start the script
+        print(f"mockprovider pid file at '{pid_file}' does not exist.", flush=True)
+
+def startMockService():
+    try:
+        print("Starting mock provider...", flush=True)
         subprocess.Popen(["python", "/home/dev/ws/mock/mockprovider.py"])
-        print("Script started.", flush=True) 
+        print("mock provider started.", flush=True)
+    except Exception as e:
+        print(f"Error starting mock provider: {e}", flush=True)
+        return 1
+
+def restartMockProvider():
+    stopMockService()
+    time.sleep(0.5)
+    startMockService()
 
 def appendMockSignal(signals):
     if signals is None or len(signals) <=0:
@@ -492,14 +538,14 @@ def writeSignalsValue(input_str):
                     try:
                         target_value = {path: Datapoint(value)}
                         kclient.set_target_values(target_value)
-                        print(target_value,flush=True)
+                        # print(target_value,flush=True)
                     except Exception as e:
                         print("Error occured when writing target values: " + str(e),flush=True)
                 elif entry_type == EntryType.SENSOR:
                     try:
                         current_value = {path: Datapoint(value)}
                         kclient.set_current_values(current_value)
-                        print(current_value, flush=True)
+                        # print(current_value, flush=True)
                     except Exception as e:
                         print("Error occured when writing current values: " + str(e), flush=True)
                 else:
