@@ -1,6 +1,6 @@
 #!/bin/sh
 
-DISABLE_DATABROKER=${DISABLE_DATABROKER:-"false"}
+DISABLE_DATABROKER=${DISABLE_DATABROKER:-""}
 DATABROKER_ARGS=${DATABROKER_ARGS:-""}
 SYNCER_SERVER_URL=${SYNCER_SERVER_URL:-"https://kit.digitalauto.tech"}
 VSS_DATA=${VSS_DATA:-""}
@@ -13,7 +13,7 @@ echo "Running as user: $(id -u -n)"
 
 mosquitto -d -c /etc/mosquitto/mosquitto-no-auth.conf
 
-if [[ "${!DISABLE_DATABROKER}" == "false" ]]; then
+if [ -z "$DISABLE_DATABROKER" ]; then
     /app/databroker $DATABROKER_ARGS & 
 fi
 
@@ -21,9 +21,9 @@ fi
 
 sleep 3 # Ensure that the kuksa databroker and mosquitto start before the syncer
 
-#python3 /home/dev/ws/kuksa-syncer/syncer.pyc &    
-python3 /home/dev/ws/kuksa-syncer/syncer.py &   
+#python3 /home/dev/ws/kuksa-syncer/syncer.pyc &   
 
+python3 /home/dev/ws/kuksa-syncer/syncer.py &   
 
 # if [ -n "$VSS_DATA" ]; then
 #     cd /home/dev/python-packages/vehicle-model-generator/

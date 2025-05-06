@@ -33,9 +33,15 @@ class VehicleIdentification(Model):
     DateVehicleFirstRegistered: attribute (string)
         The date in ISO 8601 format of the first registration of the vehicle with the respective public authorities.
 
-        Unit: None
+        Unit: iso8601
     KnownVehicleDamages: attribute (string)
         A textual description of known damages, both repaired and unrepaired.
+
+        Unit: None
+    LicensePlate: attribute (string)
+        The license plate of the vehicle.
+
+        Depending on the context, this attribute might not be up to date or might be misconfigured, and therefore should be considered untrustworthy in the absence of another method of verification.
 
         Unit: None
     MeetsEmissionStandard: attribute (string)
@@ -55,17 +61,21 @@ class VehicleIdentification(Model):
     ProductionDate: attribute (string)
         The date in ISO 8601 format of production of the item, e.g. vehicle.
 
-        Unit: None
+        Unit: iso8601
     PurchaseDate: attribute (string)
         The date in ISO 8601 format of the item e.g. vehicle was purchased by the current owner.
 
-        Unit: None
+        Unit: iso8601
     VIN: attribute (string)
         17-character Vehicle Identification Number (VIN) as defined by ISO 3779.
 
         Unit: None
     VehicleConfiguration: attribute (string)
         A short text indicating the configuration of the vehicle, e.g. '5dr hatchback ST 2.5 MT 225 hp' or 'limited edition'.
+
+        Unit: None
+    VehicleExteriorColor: attribute (string)
+        The main color of the exterior within the basic color palette (eg. red, blue, black, white, ...).
 
         Unit: None
     VehicleInteriorColor: attribute (string)
@@ -79,7 +89,7 @@ class VehicleIdentification(Model):
     VehicleModelDate: attribute (string)
         The release date in ISO 8601 format of a vehicle model (often used to differentiate versions of the same make and model).
 
-        Unit: None
+        Unit: iso8601
     VehicleSeatingCapacity: attribute (uint16)
         The number of passengers that can be seated in the vehicle, both in terms of the physical space available, and in terms of limitations set by law.
 
@@ -108,6 +118,7 @@ class VehicleIdentification(Model):
         self.Brand = DataPointString("Brand", self)
         self.DateVehicleFirstRegistered = DataPointString("DateVehicleFirstRegistered", self)
         self.KnownVehicleDamages = DataPointString("KnownVehicleDamages", self)
+        self.LicensePlate = DataPointString("LicensePlate", self)
         self.MeetsEmissionStandard = DataPointString("MeetsEmissionStandard", self)
         self.Model = DataPointString("Model", self)
         self.OptionalExtras = DataPointStringArray("OptionalExtras", self)
@@ -115,6 +126,7 @@ class VehicleIdentification(Model):
         self.PurchaseDate = DataPointString("PurchaseDate", self)
         self.VIN = DataPointString("VIN", self)
         self.VehicleConfiguration = DataPointString("VehicleConfiguration", self)
+        self.VehicleExteriorColor = DataPointString("VehicleExteriorColor", self)
         self.VehicleInteriorColor = DataPointString("VehicleInteriorColor", self)
         self.VehicleInteriorType = DataPointString("VehicleInteriorType", self)
         self.VehicleModelDate = DataPointString("VehicleModelDate", self)

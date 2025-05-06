@@ -6,6 +6,7 @@
 
 
 from velocitas_sdk.model import (
+    DataPointBoolean,
     DataPointUint8,
     Model,
 )
@@ -23,6 +24,10 @@ class Infotainment(Model):
     ----------
     HMI: branch
         HMI related signals
+
+        Unit: None
+    IsAutoPowerOptimize: actuator
+        Auto Power Optimization Flag When set to 'true', the system enables automatic power optimization, dynamically adjusting the power optimization level based on runtime conditions or features managed by the OEM. When set to 'false', manual control of the power optimization level is allowed.
 
         Unit: None
     Media: branch
@@ -50,6 +55,7 @@ class Infotainment(Model):
         self.name = name
 
         self.HMI = HMI("HMI", self)
+        self.IsAutoPowerOptimize = DataPointBoolean("IsAutoPowerOptimize", self)
         self.Media = Media("Media", self)
         self.Navigation = Navigation("Navigation", self)
         self.PowerOptimizeLevel = DataPointUint8("PowerOptimizeLevel", self)

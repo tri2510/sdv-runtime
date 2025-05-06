@@ -6,6 +6,7 @@
 
 
 from velocitas_sdk.model import (
+    DataPointBoolean,
     DataPointString,
     DataPointUint8,
     Model,
@@ -17,8 +18,14 @@ class RearShade(Model):
 
     Attributes
     ----------
+    IsOpen: actuator
+        Is item open or closed? True = Fully or partially open. False = Fully closed.
+
+        Unit: None
     Position: actuator
-        Position of window blind. 0 = Fully retracted. 100 = Fully deployed.
+        Item position. 0 = Start position 100 = End position.
+
+        Relationship between Open/Close and Start/End position is item dependent.
 
         Value range: [0, 100]
         Unit: percent
@@ -34,5 +41,6 @@ class RearShade(Model):
         super().__init__(parent)
         self.name = name
 
+        self.IsOpen = DataPointBoolean("IsOpen", self)
         self.Position = DataPointUint8("Position", self)
         self.Switch = DataPointString("Switch", self)

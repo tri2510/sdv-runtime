@@ -84,3 +84,23 @@ docker buildx use default # You can use 'docker buildx ls' to check the name bef
 docker buildx build --platform linux/amd64 -t sdv-runtime:latest -f Dockerfile .
 ```
 
+
+
+## FOR LOCAL DEV TEST
+
+### Create a local image
+
+```shell
+docker buildx build --platform linux/amd64 -t local001 -f Dockerfile .
+```
+
+### Run local image
+```shell
+docker run -d -e RUNTIME_NAME="bbb" -p 55555:55555 docker.io/library/local001
+
+# with mount point
+docker run -d -e RUNTIME_NAME="bbb" -v /home/nhan/dev/tmp:/home/dev/data -p 55555:55555 docker.io/library/local001
+
+# access docker bash
+docker exec -it <container_name_or_id> bash
+```

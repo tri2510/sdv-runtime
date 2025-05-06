@@ -67,6 +67,11 @@ class Body(Model):
 
         Value range: [0, 100]
         Unit: percent
+    RefuelPosition: attribute (string)
+        Location of the fuel cap or charge port.
+
+        Unit: None
+        Allowed values: FRONT_LEFT, FRONT_RIGHT, MIDDLE_LEFT, MIDDLE_RIGHT, REAR_LEFT, REAR_RIGHT
     Trunk: branch
         Trunk status. Start position for Trunk is Closed.
 
@@ -77,11 +82,6 @@ class Body(Model):
         Windshield signals.
 
         Unit: None
-    RefuelPosition: attribute (string)
-        Location of the fuel cap or charge port.
-
-        Unit: None
-        Allowed values: FRONT_LEFT, FRONT_RIGHT, MIDDLE_LEFT, MIDDLE_RIGHT, REAR_LEFT, REAR_RIGHT
     """
 
     def __init__(self, name, parent):
@@ -98,6 +98,6 @@ class Body(Model):
         self.PowerOptimizeLevel = DataPointUint8("PowerOptimizeLevel", self)
         self.Raindetection = Raindetection("Raindetection", self)
         self.RearMainSpoilerPosition = DataPointFloat("RearMainSpoilerPosition", self)
+        self.RefuelPosition = DataPointString("RefuelPosition", self)
         self.Trunk = Trunk("Trunk", self)
         self.Windshield = Windshield("Windshield", self)
-        self.RefuelPosition = DataPointString("RefuelPosition", self)

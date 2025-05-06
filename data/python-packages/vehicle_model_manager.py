@@ -4,6 +4,50 @@ import shutil
 from velocitas.model_generator import generate_model
 import json
 import signal
+import re
+# from utils import correct_parent_class_in_vehicle_model
+
+def extract_class_names(python_code):
+    """Extracts class names from a string of Python code.
+
+    Args:
+        python_code: The string containing Python code.
+
+    Returns:
+        A list of strings, where each string is a class name found in the code.
+        Returns an empty list if no class names are found.
+    """
+
+    # Regular expression to match class definitions.  Handles inheritance.
+    pattern = r"class\s+(\w+)\s*(\(.*\))?:"  # Improved regex
+
+    matches = re.findall(pattern, python_code)
+    class_names = [match[0] for match in matches]  # Extract the class name (group 1)
+    return class_names
+  
+def correct_parent_class_in_vehicle_model(file_path):
+   # Read the file
+    with open(file_path, "r") as file:
+        file_contents = file.read()
+
+    # Extract class names from the file
+    class_names = extract_class_names(file_contents)
+
+    # Check if the file contains a class definition
+    if class_names and len(class_names) > 0:
+        # Get the first class name
+        class_name = class_names[0]
+
+        # Replace the parent class name
+        new_file_contents = file_contents.replace('vehicle = Vehicle("Vehicle")', f'vehicle = {class_name}("{class_name}")')
+
+        # Write the new contents back to the file
+        with open(file_path, "w") as file:
+            file.write(new_file_contents)
+
+        print(f"Parent class name in '{file_path}' has been corrected to '{class_name}'.", flush=True)
+    else:
+        print(f"No class definitions")
 
 def restart_databroker():
     try:
@@ -32,12 +76,12 @@ def restart_databroker():
     
 def generate_vehicle_model(input_str):
     data = json.loads(input_str)
-    with open('/home/dev/ws/custom-vss.json', 'w') as custom_vss_file:
-        json.dump(data, custom_vss_file, indent=4)
+    vss_path = "/home/dev/ws/vss.json"
+    with open(vss_path, 'w') as vss_file:
+        json.dump(data, vss_file, indent=4)
     
-    custom_vss_path = "/home/dev/ws/custom-vss.json"
-    if not os.path.isfile(custom_vss_path):
-        print("Error: Couldn't find custom-vss.json.", flush=True)
+    if not os.path.isfile(vss_path):
+        print("Error: Couldn't find vss.json.", flush=True)
         return
 
     try:
@@ -51,7 +95,7 @@ def generate_vehicle_model(input_str):
         strict = True
         include_dir = "/home/dev/python-packages/vehicle_signal_specification/spec"
 
-        generate_model( custom_vss_path,
+        generate_model( vss_path,
                         input_unit_file_path_list,
                         language,
                         target_folder,
@@ -59,12 +103,15 @@ def generate_vehicle_model(input_str):
                         strict,
                         include_dir)
         
+        # on parent class, ensure using the right class name
+        correct_parent_class_in_vehicle_model(f"{target_folder}/vehicle/__init__.py")
+
+        
         shutil.move(f"{target_folder}/vehicle", "/home/dev/python-packages/")
-        os.environ["KUKSA_DATABROKER_METADATA_FILE"] = custom_vss_path
         restart_databroker()
     
     except Exception as e:
-        print(f">>Error occured when generating vehicle model: {e}.", flush=True)  
+        print(f"..Error occured when generating vehicle model: {e}.", flush=True)  
 
 def revert_vehicle_model():
     current_dir = "/home/dev/python-packages/vehicle"
@@ -74,6 +121,18 @@ def revert_vehicle_model():
     # be here unless it get removed during runtime.
     old_dir = "/home/dev/python-packages/std_vehicle"
     shutil.copytree(old_dir, current_dir)
-    os.environ["KUKSA_DATABROKER_METADATA_FILE"] = "/home/dev/ws/vss_release_4.0.json"
+
+    # restore default vss.json
+    copy_and_override("/home/dev/ws/default_vss.json", "/home/dev/ws/vss.json")
     restart_databroker()
     print("Reverted back to standard vehicle model")
+
+def copy_and_override(source_file, destination_file):
+    """Copies source_file to destination_file, overwriting if it exists."""
+    try:
+        shutil.copyfile(source_file, destination_file)
+        print(f"File '{source_file}' copied to '{destination_file}' successfully.")
+    except FileNotFoundError:
+        print(f"Error: Source file '{source_file}' not found.")
+    except Exception as e:
+        print("An error occurred:", e)

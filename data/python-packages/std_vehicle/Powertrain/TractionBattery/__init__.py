@@ -9,6 +9,7 @@ from velocitas_sdk.model import (
     DataPointBoolean,
     DataPointFloat,
     DataPointString,
+    DataPointStringArray,
     DataPointUint16,
     DataPointUint32,
     Model,
@@ -66,6 +67,12 @@ class TractionBattery(Model):
         Properties related to DC/DC converter converting high voltage (from high voltage battery) to vehicle low voltage (supply voltage, typically 12 Volts).
 
         Unit: None
+    ErrorCodes: sensor
+        Current error codes related to the battery, if any.
+
+        Error code format is not defined, it may be DTCs according to OBD II (SAE-J2012DA_201812) standard ([P|C|B|U]XXXXX ) or any other format.
+
+        Unit: None
     GrossCapacity: attribute (uint16)
         Gross capacity of the battery.
 
@@ -109,7 +116,7 @@ class TractionBattery(Model):
     ProductionDate: attribute (string)
         Production date of battery in ISO8601 format, e.g. YYYY-MM-DD.
 
-        Unit: None
+        Unit: iso8601
     Range: sensor
         Remaining range in meters using only battery.
 
@@ -129,6 +136,10 @@ class TractionBattery(Model):
         Temperature Information for the battery pack.
 
         Unit: None
+    TimeRemaining: sensor
+        Time remaining in seconds before the battery is empty.
+
+        Unit: s
     """
 
     def __init__(self, name, parent):
@@ -146,6 +157,7 @@ class TractionBattery(Model):
         self.CurrentPower = DataPointFloat("CurrentPower", self)
         self.CurrentVoltage = DataPointFloat("CurrentVoltage", self)
         self.DCDC = DCDC("DCDC", self)
+        self.ErrorCodes = DataPointStringArray("ErrorCodes", self)
         self.GrossCapacity = DataPointUint16("GrossCapacity", self)
         self.Id = DataPointString("Id", self)
         self.IsGroundConnected = DataPointBoolean("IsGroundConnected", self)
@@ -159,3 +171,4 @@ class TractionBattery(Model):
         self.StateOfCharge = StateOfCharge("StateOfCharge", self)
         self.StateOfHealth = DataPointFloat("StateOfHealth", self)
         self.Temperature = Temperature("Temperature", self)
+        self.TimeRemaining = DataPointUint32("TimeRemaining", self)

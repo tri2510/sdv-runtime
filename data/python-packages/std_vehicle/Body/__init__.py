@@ -6,6 +6,7 @@
 
 
 from velocitas_sdk.model import (
+    DataPointBoolean,
     DataPointFloat,
     DataPointString,
     DataPointUint8,
@@ -31,13 +32,17 @@ class Body(Model):
 
         Unit: None
     Hood: branch
-        Hood status.
+        Hood status. Start position for Hood is Closed.
 
         The hood is the hinged cover over the engine compartment of a motor vehicles. Depending on vehicle, it can be either in the front or back of the vehicle. Luggage compartments are in VSS called trunks, even if they are located at the front of the vehicle.
 
         Unit: None
     Horn: branch
         Horn signals.
+
+        Unit: None
+    IsAutoPowerOptimize: actuator
+        Auto Power Optimization Flag When set to 'true', the system enables automatic power optimization, dynamically adjusting the power optimization level based on runtime conditions or features managed by the OEM. When set to 'false', manual control of the power optimization level is allowed.
 
         Unit: None
     Lights: branch
@@ -68,7 +73,7 @@ class Body(Model):
         Unit: None
         Allowed values: FRONT_LEFT, FRONT_RIGHT, MIDDLE_LEFT, MIDDLE_RIGHT, REAR_LEFT, REAR_RIGHT
     Trunk: branch
-        Trunk status.
+        Trunk status. Start position for Trunk is Closed.
 
         A trunk is a luggage compartment in a vehicle. Depending on vehicle, it can be either in the front or back of the vehicle. Some vehicles may have trunks both at the front and at the rear of the vehicle.
 
@@ -87,6 +92,7 @@ class Body(Model):
         self.BodyType = DataPointString("BodyType", self)
         self.Hood = Hood("Hood", self)
         self.Horn = Horn("Horn", self)
+        self.IsAutoPowerOptimize = DataPointBoolean("IsAutoPowerOptimize", self)
         self.Lights = Lights("Lights", self)
         self.Mirrors = Mirrors("Mirrors", self)
         self.PowerOptimizeLevel = DataPointUint8("PowerOptimizeLevel", self)

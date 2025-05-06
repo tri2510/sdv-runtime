@@ -94,15 +94,6 @@ class FuelSystem(Model):
         Time remaining in seconds before the fuel tank is empty.
 
         Unit: s
-    Level: sensor
-        Level in fuel tank as percent of capacity. 0 = empty. 100 = full.
-
-        Value range: [0, 100]
-        Unit: percent
-    TimeSinceStart: sensor
-        Time in seconds elapsed since start of current trip.
-
-        Unit: s
     """
 
     def __init__(self, name, parent):
@@ -125,5 +116,3 @@ class FuelSystem(Model):
         self.SupportedFuelTypes = DataPointStringArray("SupportedFuelTypes", self)
         self.TankCapacity = DataPointFloat("TankCapacity", self)
         self.TimeRemaining = DataPointUint32("TimeRemaining", self)
-        self.Level = DataPointUint8("Level", self)
-        self.TimeSinceStart = DataPointUint32("TimeSinceStart", self)

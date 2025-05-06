@@ -7,6 +7,7 @@
 
 from velocitas_sdk.model import (
     DataPointInt16,
+    DataPointInt8,
     DataPointUint8,
     Model,
 )
@@ -26,6 +27,11 @@ class SteeringWheel(Model):
 
         Value range: [0, 100]
         Unit: percent
+    HeatingCooling: actuator
+        Heating or Cooling requsted for the Item. -100 = Maximum cooling, 0 = Heating/cooling deactivated, 100 = Maximum heating.
+
+        Value range: [-100, 100]
+        Unit: percent
     Tilt: actuator
         Steering wheel column tilt. 0 = Lowest position. 100 = Highest position.
 
@@ -40,4 +46,5 @@ class SteeringWheel(Model):
 
         self.Angle = DataPointInt16("Angle", self)
         self.Extension = DataPointUint8("Extension", self)
+        self.HeatingCooling = DataPointInt8("HeatingCooling", self)
         self.Tilt = DataPointUint8("Tilt", self)

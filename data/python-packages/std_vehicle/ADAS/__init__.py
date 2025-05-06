@@ -6,6 +6,7 @@
 
 
 from velocitas_sdk.model import (
+    DataPointBoolean,
     DataPointString,
     DataPointUint8,
     Model,
@@ -58,6 +59,10 @@ class ADAS(Model):
         Electronic Stability Control System signals.
 
         Unit: None
+    IsAutoPowerOptimize: actuator
+        Auto Power Optimization Flag When set to 'true', the system enables automatic power optimization, dynamically adjusting the power optimization level based on runtime conditions or features managed by the OEM. When set to 'false', manual control of the power optimization level is allowed.
+
+        Unit: None
     LaneDepartureDetection: branch
         Signals from Lane Departure Detection System.
 
@@ -94,6 +99,7 @@ class ADAS(Model):
         self.EBA = EBA("EBA", self)
         self.EBD = EBD("EBD", self)
         self.ESC = ESC("ESC", self)
+        self.IsAutoPowerOptimize = DataPointBoolean("IsAutoPowerOptimize", self)
         self.LaneDepartureDetection = LaneDepartureDetection("LaneDepartureDetection", self)
         self.ObstacleDetection = ObstacleDetection("ObstacleDetection", self)
         self.PowerOptimizeLevel = DataPointUint8("PowerOptimizeLevel", self)

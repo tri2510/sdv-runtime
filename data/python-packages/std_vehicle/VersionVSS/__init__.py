@@ -20,6 +20,8 @@ class VersionVSS(Model):
     Label: attribute (string)
         Label to further describe the version.
 
+        COVESA VSS project typically use dev for latest master, and empty string for released versions.
+
         Unit: None
     Major: attribute (uint32)
         Supported Version of VSS - Major version.

@@ -8,7 +8,6 @@
 from velocitas_sdk.model import (
     DataPointInt16,
     DataPointInt8,
-    DataPointString,
     DataPointUint8,
     Model,
 )
@@ -38,11 +37,6 @@ class SteeringWheel(Model):
 
         Value range: [0, 100]
         Unit: percent
-    Position: attribute (string)
-        Position of the steering wheel on the left or right side of the vehicle.
-
-        Unit: None
-        Allowed values: FRONT_LEFT, FRONT_RIGHT
     """
 
     def __init__(self, name, parent):
@@ -54,4 +48,3 @@ class SteeringWheel(Model):
         self.Extension = DataPointUint8("Extension", self)
         self.HeatingCooling = DataPointInt8("HeatingCooling", self)
         self.Tilt = DataPointUint8("Tilt", self)
-        self.Position = DataPointString("Position", self)

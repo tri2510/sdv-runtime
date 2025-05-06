@@ -7,6 +7,8 @@
 
 from velocitas_sdk.model import (
     DataPointBoolean,
+    DataPointString,
+    DataPointUint8,
     Model,
 )
 
@@ -17,9 +19,21 @@ class Hood(Model):
     Attributes
     ----------
     IsOpen: actuator
-        Hood open or closed. True = Open. False = Closed.
+        Is item open or closed? True = Fully or partially open. False = Fully closed.
 
         Unit: None
+    Position: actuator
+        Item position. 0 = Start position 100 = End position.
+
+        Relationship between Open/Close and Start/End position is item dependent.
+
+        Value range: [0, 100]
+        Unit: percent
+    Switch: actuator
+        Switch controlling sliding action such as window, sunroof, or blind.
+
+        Unit: None
+        Allowed values: INACTIVE, CLOSE, OPEN, ONE_SHOT_CLOSE, ONE_SHOT_OPEN
     """
 
     def __init__(self, name, parent):
@@ -28,3 +42,5 @@ class Hood(Model):
         self.name = name
 
         self.IsOpen = DataPointBoolean("IsOpen", self)
+        self.Position = DataPointUint8("Position", self)
+        self.Switch = DataPointString("Switch", self)

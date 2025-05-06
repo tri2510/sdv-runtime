@@ -17,8 +17,16 @@ class DriverSide(Model):
 
     Attributes
     ----------
+    IsFolded: actuator
+        Is mirror folded? True = Fully or partially folded. False = Fully unfolded.
+
+        Unit: None
     IsHeatingOn: actuator
         Mirror Heater on or off. True = Heater On. False = Heater Off.
+
+        Unit: None
+    IsLocked: actuator
+        Is mirror movement locked? True = Locked, mirror will not react to Tilt/Pan change. False = Unlocked.
 
         Unit: None
     Pan: actuator
@@ -38,6 +46,8 @@ class DriverSide(Model):
         super().__init__(parent)
         self.name = name
 
+        self.IsFolded = DataPointBoolean("IsFolded", self)
         self.IsHeatingOn = DataPointBoolean("IsHeatingOn", self)
+        self.IsLocked = DataPointBoolean("IsLocked", self)
         self.Pan = DataPointInt8("Pan", self)
         self.Tilt = DataPointInt8("Tilt", self)

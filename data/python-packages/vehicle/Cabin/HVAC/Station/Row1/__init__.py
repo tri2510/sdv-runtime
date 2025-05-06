@@ -10,9 +10,7 @@ from velocitas_sdk.model import (
 )
 
 from vehicle.Cabin.HVAC.Station.Row1.Driver import Driver
-from vehicle.Cabin.HVAC.Station.Row1.Left import Left
 from vehicle.Cabin.HVAC.Station.Row1.Passenger import Passenger
-from vehicle.Cabin.HVAC.Station.Row1.Right import Right
 
 
 class Row1(Model):
@@ -28,14 +26,6 @@ class Row1(Model):
         HVAC for single station in the vehicle
 
         Unit: None
-    Left: branch
-        HVAC for single station in the vehicle
-
-        Unit: None
-    Right: branch
-        HVAC for single station in the vehicle
-
-        Unit: None
     """
 
     def __init__(self, name, parent):
@@ -45,5 +35,3 @@ class Row1(Model):
 
         self.Driver = Driver("Driver", self)
         self.Passenger = Passenger("Passenger", self)
-        self.Left = Left("Left", self)
-        self.Right = Right("Right", self)

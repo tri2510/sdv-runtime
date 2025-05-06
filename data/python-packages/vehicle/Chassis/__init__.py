@@ -51,10 +51,6 @@ class Chassis(Model):
         Overall wheelbase, in mm.
 
         Unit: mm
-    Track: attribute (uint16)
-        Overall wheel tracking, in mm.
-
-        Unit: mm
     """
 
     def __init__(self, name, parent):
@@ -69,4 +65,3 @@ class Chassis(Model):
         self.ParkingBrake = ParkingBrake("ParkingBrake", self)
         self.SteeringWheel = SteeringWheel("SteeringWheel", self)
         self.Wheelbase = DataPointUint16("Wheelbase", self)
-        self.Track = DataPointUint16("Track", self)

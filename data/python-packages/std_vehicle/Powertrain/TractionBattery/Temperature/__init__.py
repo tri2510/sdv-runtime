@@ -7,6 +7,7 @@
 
 from velocitas_sdk.model import (
     DataPointFloat,
+    DataPointFloatArray,
     Model,
 )
 
@@ -20,6 +21,12 @@ class Temperature(Model):
         Current average temperature of the battery cells.
 
         Unit: celsius
+    CellTemperature: sensor
+        Array of cell temperatures. Length or array shall correspond to number of cells in vehicle.
+
+        Cells are identified by relative position in array.
+
+        Unit: None
     Max: sensor
         Current maximum temperature of the battery cells, i.e. temperature of the hottest cell.
 
@@ -36,5 +43,6 @@ class Temperature(Model):
         self.name = name
 
         self.Average = DataPointFloat("Average", self)
+        self.CellTemperature = DataPointFloatArray("CellTemperature", self)
         self.Max = DataPointFloat("Max", self)
         self.Min = DataPointFloat("Min", self)

@@ -44,6 +44,11 @@ class Middle(Model):
 
         Value range: [-100, 100]
         Unit: percent
+    HeatingCooling: actuator
+        Heating or Cooling requsted for the Item. -100 = Maximum cooling, 0 = Heating/cooling deactivated, 100 = Maximum heating.
+
+        Value range: [-100, 100]
+        Unit: percent
     Height: actuator
         Seat position on vehicle z-axis. Position is relative within available movable range of the seating. 0 = Lowermost position supported.
 
@@ -70,6 +75,10 @@ class Middle(Model):
         Seat position on vehicle x-axis. Position is relative to the frontmost position supported by the seat. 0 = Frontmost position supported.
 
         Value range: [0, ]
+        Unit: mm
+    SeatBeltHeight: actuator
+        Seat belt position on vehicle z-axis. Position is relative within available movable range of the seat belt. 0 = Lowermost position supported.
+
         Unit: mm
     Seating: branch
         Describes signals related to the seat bottom of the seat.
@@ -98,12 +107,14 @@ class Middle(Model):
         self.Backrest = Backrest("Backrest", self)
         self.Headrest = Headrest("Headrest", self)
         self.Heating = DataPointInt8("Heating", self)
+        self.HeatingCooling = DataPointInt8("HeatingCooling", self)
         self.Height = DataPointUint16("Height", self)
         self.IsBelted = DataPointBoolean("IsBelted", self)
         self.IsOccupied = DataPointBoolean("IsOccupied", self)
         self.Massage = DataPointUint8("Massage", self)
         self.Occupant = Occupant("Occupant", self)
         self.Position = DataPointUint16("Position", self)
+        self.SeatBeltHeight = DataPointUint16("SeatBeltHeight", self)
         self.Seating = Seating("Seating", self)
         self.Switch = Switch("Switch", self)
         self.Tilt = DataPointFloat("Tilt", self)

@@ -56,6 +56,13 @@ class HMI(Model):
 
         Unit: None
         Allowed values: MILES_PER_KILOWATT_HOUR, KILOMETERS_PER_KILOWATT_HOUR, KILOWATT_HOURS_PER_100_MILES, KILOWATT_HOURS_PER_100_KILOMETERS, WATT_HOURS_PER_MILE, WATT_HOURS_PER_KILOMETER
+    EVEnergyUnits: actuator
+        EV energy unit used in the current HMI
+
+        Ampere hours is by definition not an energy unit, but can be used as a measurement of energy if the voltage, like nominal voltage of the battery, is known.
+
+        Unit: None
+        Allowed values: WATT_HOURS, AMPERE_HOURS, KILOWATT_HOURS
     FontSize: actuator
         Font size used in the current HMI
 
@@ -78,7 +85,12 @@ class HMI(Model):
     LastActionTime: sensor
         Time for last hmi action, formatted according to ISO 8601 with UTC time zone.
 
+        Unit: iso8601
+    SpeedUnit: actuator
+        Speed unit used in the current HMI
+
         Unit: None
+        Allowed values: METERS_PER_SECOND, MILES_PER_HOUR, KILOMETERS_PER_HOUR
     TemperatureUnit: actuator
         Temperature unit used in the current HMI
 
@@ -108,11 +120,13 @@ class HMI(Model):
         self.DisplayOffDuration = DataPointUint16("DisplayOffDuration", self)
         self.DistanceUnit = DataPointString("DistanceUnit", self)
         self.EVEconomyUnits = DataPointString("EVEconomyUnits", self)
+        self.EVEnergyUnits = DataPointString("EVEnergyUnits", self)
         self.FontSize = DataPointString("FontSize", self)
         self.FuelEconomyUnits = DataPointString("FuelEconomyUnits", self)
         self.FuelVolumeUnit = DataPointString("FuelVolumeUnit", self)
         self.IsScreenAlwaysOn = DataPointBoolean("IsScreenAlwaysOn", self)
         self.LastActionTime = DataPointString("LastActionTime", self)
+        self.SpeedUnit = DataPointString("SpeedUnit", self)
         self.TemperatureUnit = DataPointString("TemperatureUnit", self)
         self.TimeFormat = DataPointString("TimeFormat", self)
         self.TirePressureUnit = DataPointString("TirePressureUnit", self)

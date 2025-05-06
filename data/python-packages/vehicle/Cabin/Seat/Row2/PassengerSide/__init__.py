@@ -39,6 +39,11 @@ class PassengerSide(Model):
         Headrest settings.
 
         Unit: None
+    Heating: actuator
+        Seat cooling / heating. 0 = off. -100 = max cold. +100 = max heat.
+
+        Value range: [-100, 100]
+        Unit: percent
     HeatingCooling: actuator
         Heating or Cooling requsted for the Item. -100 = Maximum cooling, 0 = Heating/cooling deactivated, 100 = Maximum heating.
 
@@ -91,11 +96,6 @@ class PassengerSide(Model):
         In VSS it is assumed that tilting a seat affects both seating (seat bottom) and backrest, i.e. the angle between seating and backrest will not be affected when changing Tilt.
 
         Unit: degrees
-    Heating: actuator
-        Seat cooling / heating. 0 = off. -100 = max cold. +100 = max heat.
-
-        Value range: [-100, 100]
-        Unit: percent
     """
 
     def __init__(self, name, parent):
@@ -106,6 +106,7 @@ class PassengerSide(Model):
         self.Airbag = Airbag("Airbag", self)
         self.Backrest = Backrest("Backrest", self)
         self.Headrest = Headrest("Headrest", self)
+        self.Heating = DataPointInt8("Heating", self)
         self.HeatingCooling = DataPointInt8("HeatingCooling", self)
         self.Height = DataPointUint16("Height", self)
         self.IsBelted = DataPointBoolean("IsBelted", self)
@@ -117,4 +118,3 @@ class PassengerSide(Model):
         self.Seating = Seating("Seating", self)
         self.Switch = Switch("Switch", self)
         self.Tilt = DataPointFloat("Tilt", self)
-        self.Heating = DataPointInt8("Heating", self)

@@ -17,7 +17,6 @@ from velocitas_sdk.model import (
 
 from vehicle.Powertrain.TractionBattery.Charging.ChargeCurrent import ChargeCurrent
 from vehicle.Powertrain.TractionBattery.Charging.ChargeVoltage import ChargeVoltage
-from vehicle.Powertrain.TractionBattery.Charging.ChargingPort import ChargingPort
 from vehicle.Powertrain.TractionBattery.Charging.Location import Location
 from vehicle.Powertrain.TractionBattery.Charging.MaximumChargingCurrent import MaximumChargingCurrent
 from vehicle.Powertrain.TractionBattery.Charging.Timer import Timer
@@ -41,71 +40,6 @@ class Charging(Model):
 
         Value range: [0, 100]
         Unit: percent
-    ChargeRate: sensor
-        Current charging rate, as in kilometers of range added per hour.
-
-        Unit: km/h
-    ChargeVoltage: branch
-        Current charging voltage, as measured at the charging inlet.
-
-        Unit: None
-    ChargingPort: branch
-        Properties related to a particular charging port available in the vehicle.
-
-        If a vehicle has a single charging port, then use the instance AnyPosition.
-
-        Unit: None
-    EvseId: sensor
-        EVSE charging point ID (without separators) of last or current charging event according to ISO 15118-2 Annex H.
-
-        Length of id between 7 and 37 characters. ZZ00000 to be used if SECC cannot provide id
-
-        Unit: None
-    IsCharging: sensor
-        True if charging is ongoing. Charging is considered to be ongoing if energy is flowing from charger to vehicle.
-
-        Unit: None
-    IsDischarging: sensor
-        True if discharging (vehicle to grid) is ongoing. Discharging is considered to be ongoing if energy is flowing from vehicle to charger/grid.
-
-        Unit: None
-    Location: branch
-        Location of last or current charging event.
-
-        This may depending on implementation represent the location of (the charge port of) the vehicle during charging, or the actual location of the charger/load connected to the vehicle.
-
-        Unit: None
-    MaxPower: sensor
-        Maximum charging power of last or current charging event.
-
-        Unit: kW
-    MaximumChargingCurrent: branch
-        Maximum charging current that can be accepted by the system, as measured at the charging inlet.
-
-        Unit: None
-    PowerLoss: sensor
-        Electrical energy lost by power dissipation to heat inside the AC/DC converter.
-
-        Unit: W
-    StartStopCharging: actuator
-        Start or stop the charging process.
-
-        Unit: None
-        Allowed values: START, STOP
-    Temperature: sensor
-        Current temperature of AC/DC converter converting grid voltage to battery voltage.
-
-        Unit: celsius
-    TimeToComplete: sensor
-        The time needed for the current charging process to reach Charging.ChargeLimit. 0 if charging is complete or no charging process is active or planned.
-
-        Shall consider time set by Charging.Timer.Time. E.g. if charging shall start in 3 hours and 2 hours of charging is needed, then Charging.TimeToComplete shall report 5 hours.
-
-        Unit: s
-    Timer: branch
-        Properties related to timing of battery charging sessions.
-
-        Unit: None
     ChargePlugType: attribute (string[])
         Type of charge plugs (charging inlet) available on the vehicle. A charge plug type may occur multiple times in the list if there are multiple instances of that charge plug type. IEC types refer to IEC 62196,  GBT refers to  GB/T 20234.
 
@@ -132,8 +66,26 @@ class Charging(Model):
 
         Unit: None
         Allowed values: IEC_TYPE_1_AC, IEC_TYPE_2_AC, IEC_TYPE_3_AC, IEC_TYPE_4_DC, IEC_TYPE_1_CCS_DC, IEC_TYPE_2_CCS_DC, TESLA_ROADSTER, TESLA_HPWC, TESLA_SUPERCHARGER, GBT_AC, GBT_DC, OTHER
+    ChargeRate: sensor
+        Current charging rate, as in kilometers of range added per hour.
+
+        Unit: km/h
+    ChargeVoltage: branch
+        Current charging voltage, as measured at the charging inlet.
+
+        Unit: None
+    EvseId: sensor
+        EVSE charging point ID (without separators) of last or current charging event according to ISO 15118-2 Annex H.
+
+        Length of id between 7 and 37 characters. ZZ00000 to be used if SECC cannot provide id
+
+        Unit: None
     IsChargePortFlapOpen: actuator
         Status of the charge port flap(s), can potentially be controlled manually. True if at least one is open.
+
+        Unit: None
+    IsCharging: sensor
+        True if charging is ongoing. Charging is considered to be ongoing if energy is flowing from charger to vehicle.
 
         Unit: None
     IsChargingCableConnected: sensor
@@ -146,6 +98,24 @@ class Charging(Model):
         Locking of charging cable can be used to prevent unintentional removing during charging.
 
         Unit: None
+    IsDischarging: sensor
+        True if discharging (vehicle to grid) is ongoing. Discharging is considered to be ongoing if energy is flowing from vehicle to charger/grid.
+
+        Unit: None
+    Location: branch
+        Location of last or current charging event.
+
+        This may depending on implementation represent the location of (the charge port of) the vehicle during charging, or the actual location of the charger/load connected to the vehicle.
+
+        Unit: None
+    MaxPower: sensor
+        Maximum charging power of last or current charging event.
+
+        Unit: kW
+    MaximumChargingCurrent: branch
+        Maximum charging current that can be accepted by the system, as measured at the charging inlet.
+
+        Unit: None
     Mode: actuator
         Describes how the charging process is controlled. DEACTIVATED means that charging and discharging is deactivated, nothing will happen if charger is connected. AUTOMATIC means charging will be initiated as soon as charger is connected. TRIGGERED means charging will be initiated when triggered by user. TIMER means charging is timer-based. PROFILE means charging is controlled by profile downloaded to vehicle. EXTERNAL_ENTITY means charging/discharging is controlled by the external entity connected to the vehicle. This includes GRID-controlled charging (e.g. ISO 15118), but also other cases where vehicle is connected to an arbitrary load that is powered by the vehicle. MANUAL means manually initiated (plug-in event, companion app, etc). GRID means grid-controlled (e.g. ISO 15118).
 
@@ -153,6 +123,29 @@ class Charging(Model):
 
         Unit: None
         Allowed values: DEACTIVATED, AUTOMATIC, TRIGGERED, TIMER, PROFILE, EXTERNAL_ENTITY, MANUAL, GRID
+    PowerLoss: sensor
+        Electrical energy lost by power dissipation to heat inside the AC/DC converter.
+
+        Unit: W
+    StartStopCharging: actuator
+        Start or stop the charging process.
+
+        Unit: None
+        Allowed values: START, STOP
+    Temperature: sensor
+        Current temperature of AC/DC converter converting grid voltage to battery voltage.
+
+        Unit: celsius
+    TimeToComplete: sensor
+        The time needed for the current charging process to reach Charging.ChargeLimit. 0 if charging is complete or no charging process is active or planned.
+
+        Shall consider time set by Charging.Timer.Time. E.g. if charging shall start in 3 hours and 2 hours of charging is needed, then Charging.TimeToComplete shall report 5 hours.
+
+        Unit: s
+    Timer: branch
+        Properties related to timing of battery charging sessions.
+
+        Unit: None
     """
 
     def __init__(self, name, parent):
@@ -163,25 +156,24 @@ class Charging(Model):
         self.AveragePower = DataPointFloat("AveragePower", self)
         self.ChargeCurrent = ChargeCurrent("ChargeCurrent", self)
         self.ChargeLimit = DataPointUint8("ChargeLimit", self)
+        self.ChargePlugType = DataPointStringArray("ChargePlugType", self)
+        self.ChargePortFlap = DataPointString("ChargePortFlap", self)
+        self.ChargePortPosition = DataPointStringArray("ChargePortPosition", self)
+        self.ChargePortType = DataPointStringArray("ChargePortType", self)
         self.ChargeRate = DataPointFloat("ChargeRate", self)
         self.ChargeVoltage = ChargeVoltage("ChargeVoltage", self)
-        self.ChargingPort = ChargingPort("ChargingPort", self)
         self.EvseId = DataPointString("EvseId", self)
+        self.IsChargePortFlapOpen = DataPointBoolean("IsChargePortFlapOpen", self)
         self.IsCharging = DataPointBoolean("IsCharging", self)
+        self.IsChargingCableConnected = DataPointBoolean("IsChargingCableConnected", self)
+        self.IsChargingCableLocked = DataPointBoolean("IsChargingCableLocked", self)
         self.IsDischarging = DataPointBoolean("IsDischarging", self)
         self.Location = Location("Location", self)
         self.MaxPower = DataPointFloat("MaxPower", self)
         self.MaximumChargingCurrent = MaximumChargingCurrent("MaximumChargingCurrent", self)
+        self.Mode = DataPointString("Mode", self)
         self.PowerLoss = DataPointFloat("PowerLoss", self)
         self.StartStopCharging = DataPointString("StartStopCharging", self)
         self.Temperature = DataPointFloat("Temperature", self)
         self.TimeToComplete = DataPointUint32("TimeToComplete", self)
         self.Timer = Timer("Timer", self)
-        self.ChargePlugType = DataPointStringArray("ChargePlugType", self)
-        self.ChargePortFlap = DataPointString("ChargePortFlap", self)
-        self.ChargePortPosition = DataPointStringArray("ChargePortPosition", self)
-        self.ChargePortType = DataPointStringArray("ChargePortType", self)
-        self.IsChargePortFlapOpen = DataPointBoolean("IsChargePortFlapOpen", self)
-        self.IsChargingCableConnected = DataPointBoolean("IsChargingCableConnected", self)
-        self.IsChargingCableLocked = DataPointBoolean("IsChargingCableLocked", self)
-        self.Mode = DataPointString("Mode", self)

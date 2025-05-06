@@ -24,7 +24,7 @@ class Timer(Model):
     Time: actuator
         Time for next charging-related action, formatted according to ISO 8601 with UTC time zone. Value has no significance if Charging.Timer.Mode is 'inactive'.
 
-        Unit: None
+        Unit: iso8601
     """
 
     def __init__(self, name, parent):

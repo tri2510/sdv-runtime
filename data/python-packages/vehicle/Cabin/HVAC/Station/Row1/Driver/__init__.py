@@ -6,7 +6,7 @@
 
 
 from velocitas_sdk.model import (
-    DataPointFloat,
+    DataPointInt8,
     DataPointString,
     DataPointUint8,
     Model,
@@ -41,4 +41,4 @@ class Driver(Model):
 
         self.AirDistribution = DataPointString("AirDistribution", self)
         self.FanSpeed = DataPointUint8("FanSpeed", self)
-        self.Temperature = DataPointFloat("Temperature", self)
+        self.Temperature = DataPointInt8("Temperature", self)

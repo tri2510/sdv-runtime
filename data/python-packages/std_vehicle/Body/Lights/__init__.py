@@ -73,7 +73,7 @@ class Lights(Model):
 
         Unit: None
     Running: branch
-        Running lights.
+        Daytime running lights (DRL).
 
         Unit: None
     """

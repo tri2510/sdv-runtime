@@ -25,7 +25,7 @@ class Sunroof(Model):
         Value range: [-100, 100]
         Unit: percent
     Shade: branch
-        Sun roof shade status.
+        Sun roof shade status. Open = Retracted, Closed = Deployed. Start position for Sunroof.Shade is Open/Retracted.
 
         Unit: None
     Switch: actuator

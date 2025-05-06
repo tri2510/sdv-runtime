@@ -69,6 +69,10 @@ ENV KIT_MANAGER_PORT=3090
 ENV KUKSA_DATABROKER_METADATA_FILE=/home/dev/ws/vss.json
 EXPOSE $KUKSA_DATABROKER_PORT $KIT_MANAGER_PORT
 
+RUN mkdir /home/dev/data
+RUN chown -R dev /home/dev/data
+RUN chmod -R 777 /home/dev/data
+
 WORKDIR /home/dev/
 
 ENTRYPOINT ["/start_services.sh"]

@@ -19,13 +19,13 @@ class Trunk(Model):
     Attributes
     ----------
     Front: branch
-        Trunk status.
+        Trunk status. Start position for Trunk is Closed.
 
         A trunk is a luggage compartment in a vehicle. Depending on vehicle, it can be either in the front or back of the vehicle. Some vehicles may have trunks both at the front and at the rear of the vehicle.
 
         Unit: None
     Rear: branch
-        Trunk status.
+        Trunk status. Start position for Trunk is Closed.
 
         A trunk is a luggage compartment in a vehicle. Depending on vehicle, it can be either in the front or back of the vehicle. Some vehicles may have trunks both at the front and at the rear of the vehicle.
 
