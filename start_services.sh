@@ -1,5 +1,6 @@
 #!/bin/sh
 
+DISABLE_DATABROKER=${DISABLE_DATABROKER:-"false"}
 DATABROKER_ARGS=${DATABROKER_ARGS:-""}
 SYNCER_SERVER_URL=${SYNCER_SERVER_URL:-"https://kit.digitalauto.tech"}
 VSS_DATA=${VSS_DATA:-""}
@@ -12,7 +13,9 @@ echo "Running as user: $(id -u -n)"
 
 mosquitto -d -c /etc/mosquitto/mosquitto-no-auth.conf
 
-/app/databroker $DATABROKER_ARGS & 
+if [[ "${!DISABLE_DATABROKER}" == "false" ]]; then
+    /app/databroker $DATABROKER_ARGS & 
+fi
 
 /home/dev/ws/kit-manager/node-km &
 
@@ -22,13 +25,13 @@ sleep 3 # Ensure that the kuksa databroker and mosquitto start before the syncer
 python3 /home/dev/ws/kuksa-syncer/syncer.py &   
 
 
-if [ -n "$VSS_DATA" ]; then
-    cd /home/dev/python-packages/vehicle-model-generator/
-    python3 src/velocitas/model_generator/cli.py "$VSS_DATA"  -I ../vehicle_signal_specification/spec -u ../vehicle_signal_specification/spec/units.yaml 
-    echo "Generated vehicle model from custom vss.json file at $SITE_PACKAGES_DIR/vehicle"
-    rm -rf "$SITE_PACKAGES_DIR/vehicle"
-    cp -r "/home/dev/python-packages/vehicle-model-generator/gen_model/vehicle" "$SITE_PACKAGES_DIR/"
-fi
+# if [ -n "$VSS_DATA" ]; then
+#     cd /home/dev/python-packages/vehicle-model-generator/
+#     python3 src/velocitas/model_generator/cli.py "$VSS_DATA"  -I ../vehicle_signal_specification/spec -u ../vehicle_signal_specification/spec/units.yaml 
+#     echo "Generated vehicle model from custom vss.json file at $SITE_PACKAGES_DIR/vehicle"
+#     rm -rf "$SITE_PACKAGES_DIR/vehicle"
+#     cp -r "/home/dev/python-packages/vehicle-model-generator/gen_model/vehicle" "$SITE_PACKAGES_DIR/"
+# fi
 
 if [ -n "$MOCK_SIGNAL" ]; then
     python3 /home/dev/ws/mock/mock.py    

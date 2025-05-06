@@ -39,8 +39,8 @@ RUN groupadd -r sdvr && useradd -r -g sdvr dev \
 FROM target-$TARGETARCH AS target
 ARG TARGETARCH
 
-COPY ./data/vss-core/vss_release_3.1.1.json vss_release_3.1.1.json
-COPY --chown=dev:sdvr --chmod=0755 data/vss-core/merged_vss.json /home/dev/ws/merged_vss.json
+COPY --chown=dev:sdvr --chmod=0755 data/vss-core/vss.json /home/dev/ws/vss.json
+COPY --chown=dev:sdvr --chmod=0755 data/vss-core/default_vss.json /home/dev/ws/default_vss.json
 COPY requirements.txt .
 COPY --chown=dev:sdvr --chmod=0755 data/python-packages /home/dev/python-packages
 COPY --chown=dev:sdvr --chmod=0755 kuksa-syncer /home/dev/ws/kuksa-syncer/
@@ -50,6 +50,7 @@ COPY --chown=dev:sdvr --chmod=0755 start_services.sh /start_services.sh
 
 ENV PYTHONPATH="/home/dev/python-packages/:${PYTHONPATH}"
 RUN pip uninstall -y grpcio && pip install grpcio
+RUN pip install requests
 
 RUN ln -s /home/dev/python-packages/velocitas_sdk /home/dev/python-packages/sdv \
     && mv /home/dev/ws/kuksa-syncer/vehicle_model_manager.py /home/dev/ws/kuksa-syncer/pkg_manager.py home/dev/python-packages/
@@ -65,7 +66,7 @@ ENV USERNAME="dev"
 ENV KUKSA_DATABROKER_ADDR=0.0.0.0
 ENV KUKSA_DATABROKER_PORT=55555
 ENV KIT_MANAGER_PORT=3090
-ENV KUKSA_DATABROKER_METADATA_FILE=/home/dev/ws/merged_vss.json
+ENV KUKSA_DATABROKER_METADATA_FILE=/home/dev/ws/vss.json
 EXPOSE $KUKSA_DATABROKER_PORT $KIT_MANAGER_PORT
 
 WORKDIR /home/dev/
