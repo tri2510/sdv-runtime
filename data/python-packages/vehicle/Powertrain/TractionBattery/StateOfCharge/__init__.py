@@ -19,7 +19,7 @@ class StateOfCharge(Model):
     Current: sensor
         Physical state of charge of the high voltage battery, relative to net capacity. This is not necessarily the state of charge being displayed to the customer.
 
-        Value range: [0, 100.0]
+        Value range: [0, 100]
         Unit: percent
     CurrentEnergy: sensor
         Physical state of charge of high voltage battery expressed in kWh.
@@ -30,7 +30,7 @@ class StateOfCharge(Model):
     Displayed: sensor
         State of charge displayed to the customer.
 
-        Value range: [0, 100.0]
+        Value range: [0, 100]
         Unit: percent
     """
 

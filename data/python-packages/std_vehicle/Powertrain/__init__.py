@@ -6,6 +6,7 @@
 
 
 from velocitas_sdk.model import (
+    DataPointBoolean,
     DataPointFloat,
     DataPointString,
     DataPointUint32,
@@ -41,6 +42,10 @@ class Powertrain(Model):
         Fuel system data.
 
         Unit: None
+    IsAutoPowerOptimize: actuator
+        Auto Power Optimization Flag When set to 'true', the system enables automatic power optimization, dynamically adjusting the power optimization level based on runtime conditions or features managed by the OEM. When set to 'false', manual control of the power optimization level is allowed.
+
+        Unit: None
     PowerOptimizeLevel: actuator
         Power optimization level for this branch/subsystem. A higher number indicates more aggressive power optimization. Level 0 indicates that all functionality is enabled, no power optimization enabled. Level 10 indicates most aggressive power optimization mode, only essential functionality enabled.
 
@@ -50,6 +55,10 @@ class Powertrain(Model):
         Remaining range in meters using all energy sources available in the vehicle.
 
         Unit: m
+    TimeRemaining: sensor
+        Time remaining in seconds before all energy sources available in the vehicle are empty.
+
+        Unit: s
     TractionBattery: branch
         Battery Management data.
 
@@ -76,8 +85,10 @@ class Powertrain(Model):
         self.CombustionEngine = CombustionEngine("CombustionEngine", self)
         self.ElectricMotor = ElectricMotor("ElectricMotor", self)
         self.FuelSystem = FuelSystem("FuelSystem", self)
+        self.IsAutoPowerOptimize = DataPointBoolean("IsAutoPowerOptimize", self)
         self.PowerOptimizeLevel = DataPointUint8("PowerOptimizeLevel", self)
         self.Range = DataPointUint32("Range", self)
+        self.TimeRemaining = DataPointUint32("TimeRemaining", self)
         self.TractionBattery = TractionBattery("TractionBattery", self)
         self.Transmission = Transmission("Transmission", self)
         self.Type = DataPointString("Type", self)

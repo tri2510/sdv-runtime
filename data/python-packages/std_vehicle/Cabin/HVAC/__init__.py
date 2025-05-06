@@ -28,6 +28,10 @@ class HVAC(Model):
         Is Air conditioning active.
 
         Unit: None
+    IsAutoPowerOptimize: actuator
+        Auto Power Optimization Flag When set to 'true', the system enables automatic power optimization, dynamically adjusting the power optimization level based on runtime conditions or features managed by the OEM. When set to 'false', manual control of the power optimization level is allowed.
+
+        Unit: None
     IsFrontDefrosterActive: actuator
         Is front defroster active.
 
@@ -58,6 +62,7 @@ class HVAC(Model):
 
         self.AmbientAirTemperature = DataPointFloat("AmbientAirTemperature", self)
         self.IsAirConditioningActive = DataPointBoolean("IsAirConditioningActive", self)
+        self.IsAutoPowerOptimize = DataPointBoolean("IsAutoPowerOptimize", self)
         self.IsFrontDefrosterActive = DataPointBoolean("IsFrontDefrosterActive", self)
         self.IsRearDefrosterActive = DataPointBoolean("IsRearDefrosterActive", self)
         self.IsRecirculationActive = DataPointBoolean("IsRecirculationActive", self)

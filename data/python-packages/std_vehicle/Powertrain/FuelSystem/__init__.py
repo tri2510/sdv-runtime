@@ -54,10 +54,19 @@ class FuelSystem(Model):
         Indicates that the fuel level is low (e.g. <50km range).
 
         Unit: None
+    IsFuelPortFlapOpen: actuator
+        Status of the fuel port flap(s). True if at least one is open.
+
+        Unit: None
     Range: sensor
         Remaining range in meters using only liquid fuel.
 
         Unit: m
+    RefuelPortPosition: attribute (string[])
+        Position of refuel port(s). First part indicates side of vehicle, second part relative position on that side.
+
+        Unit: None
+        Allowed values: FRONT_LEFT, FRONT_MIDDLE, FRONT_RIGHT, REAR_LEFT, REAR_MIDDLE, REAR_RIGHT, LEFT_FRONT, LEFT_MIDDLE, LEFT_REAR, RIGHT_FRONT, RIGHT_MIDDLE, RIGHT_REAR
     RelativeLevel: sensor
         Level in fuel tank as percent of capacity. 0 = empty. 100 = full.
 
@@ -81,6 +90,10 @@ class FuelSystem(Model):
         Capacity of the fuel tank in liters.
 
         Unit: l
+    TimeRemaining: sensor
+        Time remaining in seconds before the fuel tank is empty.
+
+        Unit: s
     """
 
     def __init__(self, name, parent):
@@ -95,8 +108,11 @@ class FuelSystem(Model):
         self.InstantConsumption = DataPointFloat("InstantConsumption", self)
         self.IsEngineStopStartEnabled = DataPointBoolean("IsEngineStopStartEnabled", self)
         self.IsFuelLevelLow = DataPointBoolean("IsFuelLevelLow", self)
+        self.IsFuelPortFlapOpen = DataPointBoolean("IsFuelPortFlapOpen", self)
         self.Range = DataPointUint32("Range", self)
+        self.RefuelPortPosition = DataPointStringArray("RefuelPortPosition", self)
         self.RelativeLevel = DataPointUint8("RelativeLevel", self)
         self.SupportedFuel = DataPointStringArray("SupportedFuel", self)
         self.SupportedFuelTypes = DataPointStringArray("SupportedFuelTypes", self)
         self.TankCapacity = DataPointFloat("TankCapacity", self)
+        self.TimeRemaining = DataPointUint32("TimeRemaining", self)

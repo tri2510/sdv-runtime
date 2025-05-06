@@ -49,7 +49,7 @@ class CurrentLocation(Model):
     Timestamp: sensor
         Timestamp from GNSS system for current location, formatted according to ISO 8601 with UTC time zone.
 
-        Unit: None
+        Unit: iso8601
     VerticalAccuracy: sensor
         Accuracy of altitude.
 

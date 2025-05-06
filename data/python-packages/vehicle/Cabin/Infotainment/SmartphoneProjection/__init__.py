@@ -27,8 +27,6 @@ class SmartphoneProjection(Model):
     Source: actuator
         Connectivity source selected for projection.
 
-        Smartphone projection exposes or controls specific applications on the Smartphone on the vehicle infotainment system.
-
         Unit: None
         Allowed values: USB, BLUETOOTH, WIFI
     SupportedMode: attribute (string[])

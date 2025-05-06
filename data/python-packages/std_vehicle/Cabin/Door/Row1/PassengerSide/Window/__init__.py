@@ -18,12 +18,14 @@ class Window(Model):
 
     Attributes
     ----------
-    IsOpen: sensor
-        Is window open or closed?
+    IsOpen: actuator
+        Is item open or closed? True = Fully or partially open. False = Fully closed.
 
         Unit: None
     Position: actuator
-        Window position. 0 = Fully closed 100 = Fully opened.
+        Item position. 0 = Start position 100 = End position.
+
+        Relationship between Open/Close and Start/End position is item dependent.
 
         Value range: [0, 100]
         Unit: percent

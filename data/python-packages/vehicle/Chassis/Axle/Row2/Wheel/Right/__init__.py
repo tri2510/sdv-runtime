@@ -19,18 +19,12 @@ class Right(Model):
 
     Attributes
     ----------
-    AngularSpeed: sensor
-        Angular (Rotational) speed of a vehicle's wheel.
-
-        Positive if wheel is trying to drive vehicle forward. Negative if wheel is trying to drive vehicle backward.
-
-        Unit: degrees/s
     Brake: branch
         Brake signals for wheel
 
         Unit: None
     Speed: sensor
-        Linear speed of a vehicle's wheel.
+        Rotational speed of a vehicle's wheel.
 
         Unit: km/h
     Tire: branch
@@ -44,7 +38,6 @@ class Right(Model):
         super().__init__(parent)
         self.name = name
 
-        self.AngularSpeed = DataPointFloat("AngularSpeed", self)
         self.Brake = Brake("Brake", self)
         self.Speed = DataPointFloat("Speed", self)
         self.Tire = Tire("Tire", self)

@@ -15,7 +15,6 @@ from velocitas_sdk.model import (
     Model,
 )
 
-from vehicle.Powertrain.TractionBattery.BatteryConditioning import BatteryConditioning
 from vehicle.Powertrain.TractionBattery.CellVoltage import CellVoltage
 from vehicle.Powertrain.TractionBattery.Charging import Charging
 from vehicle.Powertrain.TractionBattery.DCDC import DCDC
@@ -44,10 +43,6 @@ class TractionBattery(Model):
         The accumulated charge throughput leaving HV battery for propulsion and auxiliary loads over lifetime of the battery.
 
         Unit: Ah
-    BatteryConditioning: branch
-        Properties related to preparing the vehicle battery for charging or driving.
-
-        Unit: None
     CellVoltage: branch
         Voltage information for cells in the battery pack.
 
@@ -156,7 +151,6 @@ class TractionBattery(Model):
         self.AccumulatedChargedThroughput = DataPointFloat("AccumulatedChargedThroughput", self)
         self.AccumulatedConsumedEnergy = DataPointFloat("AccumulatedConsumedEnergy", self)
         self.AccumulatedConsumedThroughput = DataPointFloat("AccumulatedConsumedThroughput", self)
-        self.BatteryConditioning = BatteryConditioning("BatteryConditioning", self)
         self.CellVoltage = CellVoltage("CellVoltage", self)
         self.Charging = Charging("Charging", self)
         self.CurrentCurrent = DataPointFloat("CurrentCurrent", self)

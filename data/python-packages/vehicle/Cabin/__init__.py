@@ -18,7 +18,6 @@ from vehicle.Cabin.Door import Door
 from vehicle.Cabin.HVAC import HVAC
 from vehicle.Cabin.Infotainment import Infotainment
 from vehicle.Cabin.Light import Light
-from vehicle.Cabin.Lights import Lights
 from vehicle.Cabin.RearShade import RearShade
 from vehicle.Cabin.RearviewMirror import RearviewMirror
 from vehicle.Cabin.Seat import Seat
@@ -106,10 +105,6 @@ class Cabin(Model):
         Sun roof status.
 
         Unit: None
-    Lights: branch
-        Interior lights signals and sensors.
-
-        Unit: None
     """
 
     def __init__(self, name, parent):
@@ -133,4 +128,3 @@ class Cabin(Model):
         self.SeatPosCount = DataPointUint8Array("SeatPosCount", self)
         self.SeatRowCount = DataPointUint8("SeatRowCount", self)
         self.Sunroof = Sunroof("Sunroof", self)
-        self.Lights = Lights("Lights", self)

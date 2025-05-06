@@ -56,6 +56,10 @@ class Cabin(Model):
         Infotainment system.
 
         Unit: None
+    IsAutoPowerOptimize: actuator
+        Auto Power Optimization Flag When set to 'true', the system enables automatic power optimization, dynamically adjusting the power optimization level based on runtime conditions or features managed by the OEM. When set to 'false', manual control of the power optimization level is allowed.
+
+        Unit: None
     IsWindowChildLockEngaged: actuator
         Is window child lock engaged. True = Engaged. False = Disengaged.
 
@@ -74,7 +78,7 @@ class Cabin(Model):
         Value range: [0, 10]
         Unit: None
     RearShade: branch
-        Rear window shade.
+        Rear window shade. Open = Retracted, Closed = Deployed. Start position for RearShade is Open/Retracted.
 
         Unit: None
     RearviewMirror: branch
@@ -114,6 +118,7 @@ class Cabin(Model):
         self.DriverPosition = DataPointString("DriverPosition", self)
         self.HVAC = HVAC("HVAC", self)
         self.Infotainment = Infotainment("Infotainment", self)
+        self.IsAutoPowerOptimize = DataPointBoolean("IsAutoPowerOptimize", self)
         self.IsWindowChildLockEngaged = DataPointBoolean("IsWindowChildLockEngaged", self)
         self.Light = Light("Light", self)
         self.PowerOptimizeLevel = DataPointUint8("PowerOptimizeLevel", self)

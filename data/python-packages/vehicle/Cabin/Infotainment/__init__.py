@@ -15,7 +15,6 @@ from vehicle.Cabin.Infotainment.HMI import HMI
 from vehicle.Cabin.Infotainment.Media import Media
 from vehicle.Cabin.Infotainment.Navigation import Navigation
 from vehicle.Cabin.Infotainment.SmartphoneProjection import SmartphoneProjection
-from vehicle.Cabin.Infotainment.SmartphoneScreenMirroring import SmartphoneScreenMirroring
 
 
 class Infotainment(Model):
@@ -47,14 +46,6 @@ class Infotainment(Model):
     SmartphoneProjection: branch
         All smartphone projection actions.
 
-        Smartphone projection exposes or controls specific applications on the Smartphone on the vehicle infotainment system.
-
-        Unit: None
-    SmartphoneScreenMirroring: branch
-        All smartphone screen mirroring actions.
-
-        Smartphone screen mirroring mirrors the whole screen of the Smartphone on the vehicle infotainment system.
-
         Unit: None
     """
 
@@ -69,4 +60,3 @@ class Infotainment(Model):
         self.Navigation = Navigation("Navigation", self)
         self.PowerOptimizeLevel = DataPointUint8("PowerOptimizeLevel", self)
         self.SmartphoneProjection = SmartphoneProjection("SmartphoneProjection", self)
-        self.SmartphoneScreenMirroring = SmartphoneScreenMirroring("SmartphoneScreenMirroring", self)

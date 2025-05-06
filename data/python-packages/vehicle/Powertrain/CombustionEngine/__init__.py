@@ -18,8 +18,6 @@ from velocitas_sdk.model import (
 
 from vehicle.Powertrain.CombustionEngine.DieselExhaustFluid import DieselExhaustFluid
 from vehicle.Powertrain.CombustionEngine.DieselParticulateFilter import DieselParticulateFilter
-from vehicle.Powertrain.CombustionEngine.EngineCoolant import EngineCoolant
-from vehicle.Powertrain.CombustionEngine.EngineOil import EngineOil
 
 
 class CombustionEngine(Model):
@@ -77,10 +75,6 @@ class CombustionEngine(Model):
         For hybrid vehicles the engine code may refer to the combination of combustion and electric engine.
 
         Unit: None
-    EngineCoolant: branch
-        Signals related to the engine coolant
-
-        Unit: None
     EngineCoolantCapacity: attribute (float)
         Engine coolant capacity in liters.
 
@@ -89,10 +83,6 @@ class CombustionEngine(Model):
         Accumulated time during engine lifetime with 'engine speed (rpm) > 0'.
 
         Unit: h
-    EngineOil: branch
-        Signals related to the engine oil
-
-        Unit: None
     EngineOilCapacity: attribute (float)
         Engine oil capacity in liters.
 
@@ -160,9 +150,9 @@ class CombustionEngine(Model):
         Value range: [, 100]
         Unit: percent
     Torque: sensor
-        Current engine torque. Shall be reported as a negative number during engine breaking.
+        Current engine torque. Shall be reported as 0 during engine breaking.
 
-        During engine breaking the engine delivers a negative torque to the transmission.
+        During engine breaking the engine delivers a negative torque to the transmission. This negative torque shall be ignored, instead 0 shall be reported.
 
         Unit: Nm
     """
@@ -179,14 +169,12 @@ class CombustionEngine(Model):
         self.DieselExhaustFluid = DieselExhaustFluid("DieselExhaustFluid", self)
         self.DieselParticulateFilter = DieselParticulateFilter("DieselParticulateFilter", self)
         self.Displacement = DataPointUint16("Displacement", self)
-        self.ECT = DataPointFloat("ECT", self)
+        self.ECT = DataPointInt16("ECT", self)
         self.EOP = DataPointUint16("EOP", self)
-        self.EOT = DataPointFloat("EOT", self)
+        self.EOT = DataPointInt16("EOT", self)
         self.EngineCode = DataPointString("EngineCode", self)
-        self.EngineCoolant = EngineCoolant("EngineCoolant", self)
         self.EngineCoolantCapacity = DataPointFloat("EngineCoolantCapacity", self)
         self.EngineHours = DataPointFloat("EngineHours", self)
-        self.EngineOil = EngineOil("EngineOil", self)
         self.EngineOilCapacity = DataPointFloat("EngineOilCapacity", self)
         self.EngineOilLevel = DataPointString("EngineOilLevel", self)
         self.IdleHours = DataPointFloat("IdleHours", self)
@@ -202,4 +190,4 @@ class CombustionEngine(Model):
         self.Speed = DataPointUint16("Speed", self)
         self.StrokeLength = DataPointFloat("StrokeLength", self)
         self.TPS = DataPointUint8("TPS", self)
-        self.Torque = DataPointInt16("Torque", self)
+        self.Torque = DataPointUint16("Torque", self)

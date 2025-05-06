@@ -12,6 +12,7 @@ from velocitas_sdk.model import (
 )
 
 from vehicle.Cabin.Infotainment.Navigation.DestinationSet import DestinationSet
+from vehicle.Cabin.Infotainment.Navigation.Map import Map
 
 
 class Navigation(Model):
@@ -30,6 +31,10 @@ class Navigation(Model):
 
         Unit: None
         Allowed values: STANDARD_MALE, STANDARD_FEMALE, ETC
+    Map: branch
+        All map actions
+
+        Unit: None
     Mute: actuator
         Navigation mute state that was selected.
 
@@ -49,5 +54,6 @@ class Navigation(Model):
 
         self.DestinationSet = DestinationSet("DestinationSet", self)
         self.GuidanceVoice = DataPointString("GuidanceVoice", self)
+        self.Map = Map("Map", self)
         self.Mute = DataPointString("Mute", self)
         self.Volume = DataPointUint8("Volume", self)

@@ -76,50 +76,6 @@ class Lights(Model):
         Daytime running lights (DRL).
 
         Unit: None
-    IsBackupOn: actuator
-        Is backup (reverse) light on?
-
-        Unit: None
-    IsBrakeOn: actuator
-        Is brake light on?
-
-        Unit: None
-    IsFrontFogOn: actuator
-        Is front fog light on?
-
-        Unit: None
-    IsHazardOn: actuator
-        Are hazards on?
-
-        Unit: None
-    IsHighBeamOn: actuator
-        Is high beam on?
-
-        Unit: None
-    IsLeftIndicatorOn: actuator
-        Is left indicator flashing?
-
-        Unit: None
-    IsLowBeamOn: actuator
-        Is low beam on?
-
-        Unit: None
-    IsParkingOn: actuator
-        Is parking light on?
-
-        Unit: None
-    IsRearFogOn: actuator
-        Is rear fog light on?
-
-        Unit: None
-    IsRightIndicatorOn: actuator
-        Is right indicator flashing?
-
-        Unit: None
-    IsRunningOn: actuator
-        Are running lights on?
-
-        Unit: None
     """
 
     def __init__(self, name, parent):
@@ -138,14 +94,3 @@ class Lights(Model):
         self.LightSwitch = DataPointString("LightSwitch", self)
         self.Parking = Parking("Parking", self)
         self.Running = Running("Running", self)
-        self.IsBackupOn = DataPointBoolean("IsBackupOn", self)
-        self.IsBrakeOn = DataPointBoolean("IsBrakeOn", self)
-        self.IsFrontFogOn = DataPointBoolean("IsFrontFogOn", self)
-        self.IsHazardOn = DataPointBoolean("IsHazardOn", self)
-        self.IsHighBeamOn = DataPointBoolean("IsHighBeamOn", self)
-        self.IsLeftIndicatorOn = DataPointBoolean("IsLeftIndicatorOn", self)
-        self.IsLowBeamOn = DataPointBoolean("IsLowBeamOn", self)
-        self.IsParkingOn = DataPointBoolean("IsParkingOn", self)
-        self.IsRearFogOn = DataPointBoolean("IsRearFogOn", self)
-        self.IsRightIndicatorOn = DataPointBoolean("IsRightIndicatorOn", self)
-        self.IsRunningOn = DataPointBoolean("IsRunningOn", self)

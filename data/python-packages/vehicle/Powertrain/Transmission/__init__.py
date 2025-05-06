@@ -8,6 +8,7 @@
 from velocitas_sdk.model import (
     DataPointBoolean,
     DataPointFloat,
+    DataPointInt16,
     DataPointInt8,
     DataPointString,
     DataPointUint8,
@@ -121,7 +122,7 @@ class Transmission(Model):
         self.IsParkLockEngaged = DataPointBoolean("IsParkLockEngaged", self)
         self.PerformanceMode = DataPointString("PerformanceMode", self)
         self.SelectedGear = DataPointInt8("SelectedGear", self)
-        self.Temperature = DataPointFloat("Temperature", self)
+        self.Temperature = DataPointInt16("Temperature", self)
         self.TorqueDistribution = DataPointFloat("TorqueDistribution", self)
         self.TravelledDistance = DataPointFloat("TravelledDistance", self)
         self.Type = DataPointString("Type", self)

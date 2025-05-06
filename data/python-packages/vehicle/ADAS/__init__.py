@@ -33,12 +33,12 @@ class ADAS(Model):
 
         Unit: None
     ActiveAutonomyLevel: sensor
-        Indicates the currently active level of driving automation according to the SAE J3016 (Taxonomy and Definitions for Terms Related to Driving Automation Systems for On-Road Motor Vehicles).
+        Indicates the currently active level of autonomy according to SAE J3016 taxonomy.
 
-        Complies with https://www.sae.org/standards/content/j3016_202104/ and https://www.sae.org/blog/sae-j3016-update. Level 5 and 4 ADS (Automated driving system) disengage, if appropriate, only after it achieves a minimal risk condition or a driver is performing the DDT. Level 3 ADS disengages either an appropriate time after issuing a request to intervene or immediately upon user request. Level 2 DAS (Driving automation system) disengages immediately upon driver request. However, since many Level 2 DAS, often termed "Level 2.5", warn the driver shortly before reaching their operational limits, the VSS also supports the DISENGAGING state for SAE_2. Nevertheless, it should be noted that the SAE J3016 states that it is incorrect to describe driving automation features using fractional levels.
+        Follows https://www.sae.org/news/2019/01/sae-updates-j3016-automated-driving-graphic taxonomy. For SAE levels 3 and 4 the system is required to alert the driver before it will disengage. Level 4 systems are required to reach a safe state even if a driver does not take over. Only level 5 systems are required to not rely on a driver at all. While level 2 systems require the driver to be monitoring the system at all times, many level 2 systems, often termed "level 2.5" systems, do warn the driver shortly before reaching their operational limits, therefore we also support the DISENGAGING state for SAE_2.
 
         Unit: None
-        Allowed values: SAE_0, SAE_1, SAE_2_DISENGAGING, SAE_2, SAE_3_DISENGAGING, SAE_3, SAE_4_DISENGAGING, SAE_4, SAE_5_DISENGAGING, SAE_5
+        Allowed values: SAE_0, SAE_1, SAE_2_DISENGAGING, SAE_2, SAE_3_DISENGAGING, SAE_3, SAE_4_DISENGAGING, SAE_4, SAE_5
     CruiseControl: branch
         Signals from Cruise Control system.
 
@@ -77,7 +77,7 @@ class ADAS(Model):
         Value range: [0, 10]
         Unit: None
     SupportedAutonomyLevel: attribute (string)
-        Indicates the highest level of driving automation according to the SAE J3016 taxonomy the vehicle is capable of.
+        Indicates the highest level of autonomy according to SAE J3016 taxonomy the vehicle is capable of.
 
         Unit: None
         Allowed values: SAE_0, SAE_1, SAE_2, SAE_3, SAE_4, SAE_5

@@ -76,12 +76,12 @@ def restart_databroker():
     
 def generate_vehicle_model(input_str):
     data = json.loads(input_str)
-    with open('/home/dev/ws/custom-vss.json', 'w') as custom_vss_file:
-        json.dump(data, custom_vss_file, indent=4)
+    vss_path = "/home/dev/ws/vss.json"
+    with open(vss_path, 'w') as vss_file:
+        json.dump(data, vss_file, indent=4)
     
-    custom_vss_path = "/home/dev/ws/custom-vss.json"
-    if not os.path.isfile(custom_vss_path):
-        print("Error: Couldn't find custom-vss.json.", flush=True)
+    if not os.path.isfile(vss_path):
+        print("Error: Couldn't find vss.json.", flush=True)
         return
 
     try:
@@ -95,7 +95,7 @@ def generate_vehicle_model(input_str):
         strict = True
         include_dir = "/home/dev/python-packages/vehicle_signal_specification/spec"
 
-        generate_model( custom_vss_path,
+        generate_model( vss_path,
                         input_unit_file_path_list,
                         language,
                         target_folder,
@@ -108,7 +108,6 @@ def generate_vehicle_model(input_str):
 
         
         shutil.move(f"{target_folder}/vehicle", "/home/dev/python-packages/")
-        os.environ["KUKSA_DATABROKER_METADATA_FILE"] = custom_vss_path
         restart_databroker()
     
     except Exception as e:
@@ -122,6 +121,18 @@ def revert_vehicle_model():
     # be here unless it get removed during runtime.
     old_dir = "/home/dev/python-packages/std_vehicle"
     shutil.copytree(old_dir, current_dir)
-    os.environ["KUKSA_DATABROKER_METADATA_FILE"] = "/home/dev/ws/vss_release_4.0.json"
+
+    # restore default vss.json
+    copy_and_override("/home/dev/ws/default_vss.json", "/home/dev/ws/vss.json")
     restart_databroker()
     print("Reverted back to standard vehicle model")
+
+def copy_and_override(source_file, destination_file):
+    """Copies source_file to destination_file, overwriting if it exists."""
+    try:
+        shutil.copyfile(source_file, destination_file)
+        print(f"File '{source_file}' copied to '{destination_file}' successfully.")
+    except FileNotFoundError:
+        print(f"Error: Source file '{source_file}' not found.")
+    except Exception as e:
+        print("An error occurred:", e)

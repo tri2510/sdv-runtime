@@ -23,12 +23,11 @@ from vehicle.Cabin import Cabin
 from vehicle.Chassis import Chassis
 from vehicle.Connectivity import Connectivity
 from vehicle.CurrentLocation import CurrentLocation
-from vehicle.Diagnostics import Diagnostics
 from vehicle.Driver import Driver
 from vehicle.Exterior import Exterior
 from vehicle.LowVoltageBattery import LowVoltageBattery
 from vehicle.OBD import OBD
-from vehicle.Occupant import Occupant
+from vehicle.Passenger import Passenger
 from vehicle.Powertrain import Powertrain
 from vehicle.Service import Service
 from vehicle.Trailer import Trailer
@@ -92,10 +91,6 @@ class Vehicle(Model):
         Current overall Vehicle weight. Including passengers, cargo and other load inside the car.
 
         Unit: kg
-    Diagnostics: branch
-        Diagnostics data.
-
-        Unit: None
     Driver: branch
         Driver data.
 
@@ -151,12 +146,16 @@ class Vehicle(Model):
         Maximum weight of trailer.
 
         Unit: kg
+    Next: sensor
+        next
+
+        Unit: string
     OBD: branch
         OBD data.
 
         Unit: None
-    Occupant: branch
-        Occupant (Driver or Passenger) data.
+    Passenger: branch
+        nan
 
         Unit: None
     PowerOptimizeLevel: actuator
@@ -224,6 +223,10 @@ class Vehicle(Model):
         Supported Version of VSS.
 
         Unit: None
+    Width: attribute (uint16)
+        Overall vehicle width.
+
+        Unit: mm
     WidthExcludingMirrors: attribute (uint16)
         Overall vehicle width excluding mirrors, as defined by SAE J1100-2009 W103.
 
@@ -236,14 +239,6 @@ class Vehicle(Model):
         Overall vehicle width including mirrors, as defined by SAE J1100-2009 W144.
 
         Unit: mm
-    Width: attribute (uint16)
-        Overall vehicle width.
-
-        Unit: mm
-    TravelledDistance: sensor
-        Odometer reading, total distance traveled during the lifetime of the vehicle.
-
-        Unit: km
     """
 
     def __init__(self, name):
@@ -263,7 +258,6 @@ class Vehicle(Model):
         self.CurbWeight = DataPointUint16("CurbWeight", self)
         self.CurrentLocation = CurrentLocation("CurrentLocation", self)
         self.CurrentOverallWeight = DataPointUint16("CurrentOverallWeight", self)
-        self.Diagnostics = Diagnostics("Diagnostics", self)
         self.Driver = Driver("Driver", self)
         self.EmissionsCO2 = DataPointInt16("EmissionsCO2", self)
         self.Exterior = Exterior("Exterior", self)
@@ -277,8 +271,9 @@ class Vehicle(Model):
         self.LowVoltageSystemState = DataPointString("LowVoltageSystemState", self)
         self.MaxTowBallWeight = DataPointUint16("MaxTowBallWeight", self)
         self.MaxTowWeight = DataPointUint16("MaxTowWeight", self)
+        self.Next = DataPointBoolean("Next", self)
         self.OBD = OBD("OBD", self)
-        self.Occupant = Occupant("Occupant", self)
+        self.Passenger = Passenger("Passenger", self)
         self.PowerOptimizeLevel = DataPointUint8("PowerOptimizeLevel", self)
         self.Powertrain = Powertrain("Powertrain", self)
         self.RoofLoad = DataPointInt16("RoofLoad", self)
@@ -293,11 +288,10 @@ class Vehicle(Model):
         self.TurningDiameter = DataPointUint16("TurningDiameter", self)
         self.VehicleIdentification = VehicleIdentification("VehicleIdentification", self)
         self.VersionVSS = VersionVSS("VersionVSS", self)
+        self.Width = DataPointUint16("Width", self)
         self.WidthExcludingMirrors = DataPointUint16("WidthExcludingMirrors", self)
         self.WidthFoldedMirrors = DataPointUint16("WidthFoldedMirrors", self)
         self.WidthIncludingMirrors = DataPointUint16("WidthIncludingMirrors", self)
-        self.Width = DataPointUint16("Width", self)
-        self.TravelledDistance = DataPointFloat("TravelledDistance", self)
 
 
 vehicle = Vehicle("Vehicle")

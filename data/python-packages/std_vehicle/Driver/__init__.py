@@ -51,6 +51,10 @@ class Driver(Model):
         Are the driver's hands on the steering wheel or not?
 
         Unit: None
+    ProximityDetected: sensor
+        ProximityDetected
+
+        Unit: string
     """
 
     def __init__(self, name, parent):
@@ -65,3 +69,4 @@ class Driver(Model):
         self.Identifier = Identifier("Identifier", self)
         self.IsEyesOnRoad = DataPointBoolean("IsEyesOnRoad", self)
         self.IsHandsOnWheel = DataPointBoolean("IsHandsOnWheel", self)
+        self.ProximityDetected = DataPointFloat("ProximityDetected", self)
