@@ -34,9 +34,12 @@ const convertPgCode = async (appName, code, vss_payload) => {
             const convertedCode = await generator.runWithPayload(encodeToBase64(code), finalAppName, payload)
             if(convertedCode) {
                 let result = convertedCode.finalizedMainPy
+                result = result.replace(`import logging`, `import logging\r\nfrom logging.handlers import RotatingFileHandler`)
                 result = result.replace(`logging.getLogger().setLevel("DEBUG")`, `logging.getLogger().setLevel("INFO")`)
                 result = result.replace(`logging.basicConfig(format=get_opentelemetry_log_format())`, 
                                         `logging.basicConfig(filename='app.log', filemode='a',format="[%(asctime)s] %(message)s")`)
+                
+                result = result.replace(`logger = logging.getLogger(__name__)`,`logger = logging.getLogger(__name__)\r\nhandler = RotatingFileHandler('app.log', maxBytes=1048576, backupCount=1)\r\nlogger.addHandler(handler)`)
                 return result
             }
         } catch(err) {
