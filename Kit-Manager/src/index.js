@@ -8,6 +8,8 @@ const convertPgCode = require('./convert_code');
 const cors = require('cors')
 
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 const server = http.createServer(app); 
 const io = new Server(server, {
     maxHttpBufferSize: 1e8,
@@ -32,6 +34,8 @@ let SYNCER_HW = new Map()
 //     })
 // }, 3000)
 
+let hasKitStateChange = false
+
 app.use(cors({
     origin: '*'
 }));
@@ -52,10 +56,27 @@ app.get('/listAllClient', (req, res) => {
     })
 });
 
+app.post('/convertCode', async (req, res) => {
+    if(!req.body.code) {
+        return res.json({
+                status: "ERR",
+                message: "Missing code",
+        })
+    }
+    let convertedCode = await convertPgCode('VehicleApp', req.body.code || '')
+    return res.json({
+        status: "OK",
+        message: "Successful",
+        content: convertedCode
+    })
+})
+
 function announceListOfKit() {
+        // console.log("announceListOfHw to all clients")
     CLIENTS.forEach((client, client_id) => {
         io.to(client_id).emit('list-all-kits-result', Array.from(KITS.values()))
     })
+        hasKitStateChange = false
 }
 
 function announceListOfHw() {
@@ -63,6 +84,12 @@ function announceListOfHw() {
         io.to(client_id).emit('list-all-hw-result', Array.from(SYNCER_HW.values()))
     })
 }
+
+setInterval(() => {
+        if(hasKitStateChange) {
+                announceListOfKit()
+        }
+}, 1000)
 
 io.on('connection', (socket) => {
     /**
@@ -76,10 +103,13 @@ io.on('connection', (socket) => {
             name: payload.name || '',
             last_seen: new Date().getTime(),
             is_online: true,
+            noRunner: 0,
+            noSubscriber: 0,
             support_apis: payload.support_apis || [],
             desc: payload.desc || '',
         })
-        announceListOfKit()
+                hasKitStateChange = true
+        //announceListOfKit()
     })
 
     socket.on('register_hw_kit', (payload) => {
@@ -93,6 +123,18 @@ io.on('connection', (socket) => {
             support_apis: payload.support_apis || [],
             desc: payload.desc || '',
         })
+    })
+
+    socket.on('report-runtime-state', (payload) => {
+        let kit_id = payload?.kit_id || null
+        if(kit_id && payload.data) {
+                        let kit = KITS.get(kit_id)
+                        if(!kit) return
+                        kit.noRunner = payload.data.noOfRunner || 0
+                        kit.noSubscriber = payload.data.noSubscriber || 0
+                        KITS.set(kit_id, kit)
+                        hasKitStateChange = true
+        }
     })
 
     /**
@@ -146,7 +188,6 @@ io.on('connection', (socket) => {
         if(existKit) {
             existKit.is_online = false
             existKit.last_seen = new Date().getTime()
-            KITS.delete(existKit.kit_id)
             announceListOfKit()
         }
         //---------------------------------------------
@@ -170,7 +211,12 @@ io.on('connection', (socket) => {
         if(kit) {
             if(["deploy_request", "deploy_n_run"].includes(payload.cmd)) {
                 // console.log(payload)
-                let convertedCode = await convertPgCode(payload.prototype?.name || 'App', payload.code || '')
+                let convertedCode =  ''
+                if(payload.disable_code_convert) {
+                        convertedCode = payload.code
+                } else {
+                        convertedCode = await convertPgCode(payload.prototype?.name || 'App', payload.code || '')
+                }
                 // console.log(`convertedCode`)
                 // console.log(convertedCode)
                 io.to(kit.socket_id).emit('messageToKit', {
@@ -221,5 +267,5 @@ io.on('connection', (socket) => {
 });
 
 server.listen(config.port, () => {
-    console.log(`KIT-MANAGER: Listening on port ${config.port}`);
+    console.log(`Listening on port ${config.port}`);
 });
