@@ -31,6 +31,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
       - name: Set TAG variable
         id: vars
         run: |
@@ -46,5 +54,17 @@ jobs:
         with:
           context: .
           push: ${{ steps.docker_login.outcome == 'success' }}
-          tags: ghcr.io/${{ github.repository_owner }}/sdv-runtime:${{ env.TAG }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/sdv-runtime:${{ env.TAG }}
+            ghcr.io/${{ github.repository_owner }}/sdv-runtime:latest
           platforms: linux/amd64,linux/arm64
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      # Temp fix
+      # https://github.com/docker/build-push-action/issues/252
+      # https://github.com/moby/buildkit/issues/1896
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
