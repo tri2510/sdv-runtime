@@ -11,3 +11,4 @@ mock/mock_service.log
 mock_service.log
 .vssclient_history
 data/python-packages/
+data/custom-models/
