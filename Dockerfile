@@ -54,23 +54,16 @@ RUN mkdir -p /home/dev/python-packages
 ENV PYTHONPATH="/home/dev/python-packages:${PYTHONPATH}"
 RUN pip3 install --no-cache-dir --target /home/dev/python-packages -r requirements-docker.txt
 
-# Clone and setup vehicle_signal_specification
-RUN git clone --recurse-submodules --depth 1 --branch v4.0 https://github.com/COVESA/vehicle_signal_specification.git \
-    && cd vehicle_signal_specification/ \
-    && rm -rf .git \
-    && cd vss-tools/ \
+# Copy VSS specification from submodule and generate VSS JSON
+COPY vehicle_signal_specification ./vehicle_signal_specification
+RUN cd vehicle_signal_specification/vss-tools/ \
     && pip3 install --no-deps --target /home/dev/python-packages . \
-    && cd /build/vehicle_signal_specification/vss-tools/ \
     && python3 vspec2json.py -I ../spec -u ../spec/units.yaml ../spec/VehicleSignalSpecification.vspec vss.json
 
-# Clone and setup vehicle-model-generator
-RUN git clone --depth 1 --branch v0.7.2 https://github.com/eclipse-velocitas/vehicle-model-generator.git \
-    && cd vehicle-model-generator/ \
-    && cp -r src/velocitas/ /home/dev/python-packages/velocitas/ \
-    && python3 -m velocitas.model_generator.cli /build/vehicle_signal_specification/vss-tools/vss.json \
-        -I /build/vehicle_signal_specification/spec \
-        -u /build/vehicle_signal_specification/spec/units.yaml \
-    && mv ./gen_model/vehicle /home/dev/python-packages/
+# Generate vehicle models using velocitas-model-generator from PyPI
+RUN mkdir -p /home/dev/python-packages/vehicle \
+    && cd /home/dev/python-packages \
+    && python3 -m velocitas.model_generator.cli /build/vehicle_signal_specification/vss-tools/vss.json --target-folder /home/dev/python-packages/vehicle -I /build/vehicle_signal_specification/spec -u /build/vehicle_signal_specification/spec/units.yaml --name vehicle
 
 # Copy VSS and vehicle_signal_specification to the target
 RUN cp -r vehicle_signal_specification /home/dev/python-packages/ \
