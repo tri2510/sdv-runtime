@@ -16,8 +16,7 @@ types-protobuf==5.27.0.20240626
 httpimport==1.4.0
 paho-mqtt==1.6.1
 
-# Model generation tools - now from PyPI
-velocitas-model-generator==0.7.1
+# Model generation tools - using submodule (matching main branch approach)
 
 # Velocitas SDK - try PyPI first, fallback to GitHub if needed
 velocitas-sdk==0.14.1

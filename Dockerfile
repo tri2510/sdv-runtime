@@ -60,10 +60,17 @@ RUN cd vehicle_signal_specification/vss-tools/ \
     && pip3 install --no-deps --target /home/dev/python-packages . \
     && python3 vspec2json.py -I ../spec -u ../spec/units.yaml ../spec/VehicleSignalSpecification.vspec vss.json
 
-# Generate vehicle models using velocitas-model-generator from PyPI
-RUN mkdir -p /home/dev/python-packages/vehicle \
-    && cd /home/dev/python-packages \
-    && python3 -m velocitas.model_generator.cli /build/vehicle_signal_specification/vss-tools/vss.json --target-folder /home/dev/python-packages/vehicle -I /build/vehicle_signal_specification/spec -u /build/vehicle_signal_specification/spec/units.yaml --name vehicle
+# Copy vehicle-model-generator submodule and generate standard models
+COPY vehicle-model-generator ./vehicle-model-generator
+RUN cd vehicle-model-generator/ \
+    && cp -r src/velocitas/ /home/dev/python-packages/velocitas/ \
+    && python3 -m velocitas.model_generator.cli /build/vehicle_signal_specification/vss-tools/vss.json \
+        -I /build/vehicle_signal_specification/spec \
+        -u /build/vehicle_signal_specification/spec/units.yaml \
+    && mv ./gen_model/vehicle /home/dev/python-packages/
+
+# Copy missing custom vehicle models from main branch to achieve 20 models
+COPY data/custom-models/ /home/dev/python-packages/vehicle/
 
 # Copy VSS and vehicle_signal_specification to the target
 RUN cp -r vehicle_signal_specification /home/dev/python-packages/ \
