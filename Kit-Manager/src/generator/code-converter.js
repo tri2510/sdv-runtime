@@ -6,8 +6,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-//
-// SPDX-License-Identifier: Apache-2.0
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CodeConverter = exports.CodeContext = void 0;
 const create_code_snippet_1 = require("./pipeline/create-code-snippet");

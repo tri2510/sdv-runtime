@@ -6,8 +6,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-//
-// SPDX-License-Identifier: Apache-2.0
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectGeneratorError = void 0;
 const axios_1 = require("axios");

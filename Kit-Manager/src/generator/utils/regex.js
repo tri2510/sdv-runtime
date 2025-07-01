@@ -6,8 +6,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-//
-// SPDX-License-Identifier: Apache-2.0
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.REGEX = void 0;
 // NOTE: since safari doesn't support lookbehind regex yet. Try to avoid it.

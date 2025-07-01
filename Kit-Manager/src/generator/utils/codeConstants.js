@@ -6,8 +6,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-//
-// SPDX-License-Identifier: Apache-2.0
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.INDENTATION = exports.DIGITAL_AUTO = exports.VELOCITAS = exports.PYTHON = void 0;
 exports.PYTHON = {
