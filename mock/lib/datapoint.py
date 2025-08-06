@@ -22,6 +22,13 @@ def json_serialize_safe(obj):
     """JSON serialization with automatic array conversion support."""
     def convert_arrays(value):
         """Recursively convert array-like objects to JSON-serializable format."""
+        # Handle protobuf array objects (like Uint32Array, Int32Array, etc.)
+        if hasattr(value, 'values') and hasattr(value.values, '__iter__'):
+            try:
+                return list(value.values)
+            except Exception:
+                pass
+        
         # Handle array-like objects (including typed arrays)
         if hasattr(value, 'tolist') and callable(value.tolist):
             try:

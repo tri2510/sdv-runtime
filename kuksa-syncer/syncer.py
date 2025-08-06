@@ -21,9 +21,13 @@ import time
 import os
 import sys
 import json
+from json_array_patch import apply_global_patch
+
+# Apply global JSON patch for array serialization
+apply_global_patch()
+
 from vehicle_model_manager import generate_vehicle_model, revert_vehicle_model
 import pkg_manager
-import json
 
 BORKER_IP = '127.0.0.1'
 BROKER_PORT = 55555
