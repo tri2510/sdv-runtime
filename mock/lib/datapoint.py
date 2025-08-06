@@ -149,14 +149,19 @@ def convert_array_value(value: Any, data_type: DataType) -> Any:
             import json
             parsed = json.loads(value)
             if isinstance(parsed, list):
-                log.debug(f"Parsed string as JSON array: {value} -> {parsed}")
                 return parsed
         except (json.JSONDecodeError, ValueError):
             pass
     
-    # If all else fails, log and return as-is
-    log.warning(f"Unable to convert array value of type {type(value)}: {value}")
-    return value
+    # Try to convert other types to list as last resort
+    try:
+        if hasattr(value, '__iter__') and not isinstance(value, (str, bytes)):
+            return list(value)
+        else:
+            return [value]
+    except (TypeError, ValueError) as e:
+        log.warning(f"Failed to convert array value to list: {e}")
+        return value
 
 
 class DataPoint:
@@ -169,19 +174,27 @@ class DataPoint:
     ):
         self.path = path
         self.data_type = data_type
-        self.value = value
+        self.value = convert_array_value(value, data_type)
         self.value_listener = value_listener
 
     def has_discrete_value_type(self):
         """Return if the datapoint has a discrete value type."""
-        return self.data_type == DataType.BOOLEAN or self.data_type == DataType.STRING
+        return (self.data_type == DataType.BOOLEAN 
+                or self.data_type == DataType.STRING
+                or self.data_type == DataType.BOOLEAN_ARRAY
+                or self.data_type == DataType.STRING_ARRAY)
 
     def set_value(self, new_value):
         """Set the value of the datapoint."""
-        if self.value != new_value:
-            self.value = new_value
+        converted_value = convert_array_value(new_value, self.data_type)
+        if self.value != converted_value:
+            self.value = converted_value
             if self.value_listener is not None:
                 self.value_listener(self)
+    
+    def get_json_serializable_value(self):
+        """Get the value in a JSON-serializable format."""
+        return convert_array_value(self.value, self.data_type)
 
     def __eq__(self, other):
         return (
