@@ -20,6 +20,10 @@ from typing import Any, Dict, Iterator, List
 import grpc
 from kuksa_client.grpc import Datapoint
 from lib.baseservice import BaseService, is_grpc_fatal_error
+from lib.json_array_patch import apply_global_patch
+
+# Apply global JSON patch for array serialization
+apply_global_patch()
 from lib.behaviorexecutor import BehaviorExecutor
 from lib.mockeddatapoint import MockedDataPoint
 from lib.datapoint import DataPoint
