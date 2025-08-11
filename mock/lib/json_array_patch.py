@@ -107,6 +107,16 @@ def apply_global_patch():
     """Apply the global JSON patch. Call this at startup."""
     try:
         patch_json_module()
+        
+        # Also patch engineio.json which is used by socketio
+        try:
+            import engineio.json
+            engineio.json.dumps = json.dumps
+            engineio.json.dump = json.dump  
+            log.debug("Patched engineio.json module")
+        except ImportError:
+            pass
+            
         log.info("Successfully applied global JSON array serialization patch")
     except Exception as e:
         log.error(f"Failed to apply global JSON patch: {e}")
