@@ -189,6 +189,9 @@ class MockService(BaseService):
                 for item in value:
                     if isinstance(item, str) and item.isdigit():
                         converted_list.append(int(item))
+                    elif isinstance(item, str) and item.lower() in ['true', 'false']:
+                        # Handle boolean strings properly
+                        converted_list.append(item.lower() == 'true')
                     elif isinstance(item, str):
                         try:
                             converted_list.append(float(item))
