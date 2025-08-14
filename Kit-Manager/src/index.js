@@ -13,7 +13,10 @@ const http = require('http');
 const { Server } = require('socket.io');
 const config = require('../configs');
 const convertPgCode = require('./convert_code');
-const cors = require('cors')
+const cors = require('cors');
+const { spawn } = require('child_process');
+const toml = require('toml');
+const tomlify = require('tomlify-j0.4');
 
 const app = express();
 app.use(express.json());
@@ -29,6 +32,54 @@ const io = new Server(server, {
 let KITS = new Map()
 let CLIENTS = new Map()
 let SYNCER_HW = new Map()
+
+// Compilation environment detection
+const base_cpp_path = process.env.CONTAINER_MODE === 'true' ? '/home/dev' : "../../"
+console.log(`Compilation base path: ${base_cpp_path}`)
+
+// Helper functions for compilation
+async function copyDirectory(src, dest) {
+    await fs.promises.mkdir(dest, { recursive: true });
+    const entries = await fs.promises.readdir(src, { withFileTypes: true });
+  
+    for (let entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+  
+      if (entry.isDirectory()) {
+        await copyDirectory(srcPath, destPath);
+      } else {
+        await fs.promises.copyFile(srcPath, destPath);
+        const stat = await fs.promises.stat(srcPath);
+        await fs.promises.utimes(destPath, stat.atime, stat.mtime);
+      }
+    }
+}
+
+async function createMinimalSdkTemplate(dest) {
+    // Create a minimal SDK template for C++ testing
+    await fs.promises.mkdir(dest, { recursive: true });
+    await fs.promises.mkdir(path.join(dest, 'app'), { recursive: true });
+    await fs.promises.mkdir(path.join(dest, 'build'), { recursive: true });
+    
+    // Create a minimal CMakeLists.txt for standalone compilation
+    const rootCMake = `cmake_minimum_required(VERSION 3.16)
+project(TestApp CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+find_package(Threads REQUIRED)
+
+add_subdirectory(app)
+`;
+    
+    const appCMake = `cmake_minimum_required(VERSION 3.16)
+
+add_subdirectory(src)
+`;
+
+    await fs.promises.writeFile(path.join(dest, 'CMakeLists.txt'), rootCMake);
+    await fs.promises.writeFile(path.join(dest, 'app', 'CMakeLists.txt'), appCMake);
+}
 
 // setInterval(() => {
 //     console.log(`KITS: ${KITS.size}`)
@@ -272,8 +323,515 @@ io.on('connection', (socket) => {
         io.to(payload.request_from).emit('messageToKit-kitReply', payload)
     })
 
+    // ============ COMPILATION SERVICES ============
+
+    socket.on('compile_cpp', async (data) => {
+
+        if(!data["files"] || !data["app_name"]) {
+            socket.emit('compile_cpp_reply', {
+                "status": "err: invalid",
+                "result": "Invalid request, missing files or app_name\r\n",
+                "cmd": "compile_cpp",
+                "data": "",
+                "isDone": true,
+                "code": 1
+            })
+            return
+        }
+
+        // --------------------------------------------
+
+        socket.emit("compile_cpp_reply", {
+            "status": "compile-start",
+            "result": "Start to compile C++ app...\r\n",
+            "cmd": "compile_cpp",
+            "data": "",
+            "isDone": false,
+            "code": 0
+        })
+
+        let app_name = "app_" + socket.id
+        let app_dir = process.env.CONTAINER_MODE === 'true' 
+            ? `/home/dev/data/ws/${app_name}`
+            : `../ws/${app_name}`
+
+        // --------------------------------------------
+        try {
+            await createMinimalSdkTemplate(app_dir)
+        } catch(err){
+            console.log("Error on copy base directory")
+            console.log(err)
+            await socket.emit("compile_cpp_reply", {
+                "status": "err-copy-folder",
+                "result": err.toString(),
+                "cmd": "compile_cpp",
+                "data": "",
+                "isDone": true,
+                "code": 1
+            })
+            return
+        }
+
+        // ----------- Write multiple C++ files -----------
+        try {
+            // Clear existing source files (compatible with Node.js v12+)
+            try {
+                if (fs.promises.rm) {
+                    await fs.promises.rm(`${app_dir}/app/src`, { recursive: true, force: true });
+                } else {
+                    // Fallback for Node.js < v14.14.0
+                    await new Promise((resolve, reject) => {
+                        const rm = spawn('rm', ['-rf', `${app_dir}/app/src`]);
+                        rm.on('close', (code) => {
+                            if (code === 0) resolve();
+                            else reject(new Error(`rm failed with code ${code}`));
+                        });
+                        rm.on('error', reject);
+                    });
+                }
+            } catch (error) {
+                console.log("Warning: Could not clear existing source files:", error.message);
+                // Continue anyway
+            }
+            await fs.promises.mkdir(`${app_dir}/app/src`, { recursive: true });
+
+            // Write all files from web input
+            for (const [filename, content] of Object.entries(data.files)) {
+                const filePath = path.join(`${app_dir}/app/src`, filename);
+                
+                // Create subdirectories if needed (e.g., fcw/fcw_engine.cpp)
+                const fileDir = path.dirname(filePath);
+                await fs.promises.mkdir(fileDir, { recursive: true });
+                
+                await fs.promises.writeFile(filePath, content, 'utf8');
+                
+                socket.emit("compile_cpp_reply", {
+                    "status": "file-written",
+                    "result": `Written file: ${filename}\r\n`,
+                    "cmd": "compile_cpp",
+                    "data": "",
+                    "isDone": false,
+                    "code": 0
+                })
+            }
+
+            // Copy CMakeLists.txt for multi-file support with comprehensive include paths
+            const cmakeContent = `set(TARGET_NAME "app")
+
+# Collect all C++ source files dynamically
+file(GLOB_RECURSE CPP_SOURCES "*.cpp")
+
+add_executable(\${TARGET_NAME}
+    \${CPP_SOURCES}
+)
+
+# Add comprehensive include directories for headers
+target_include_directories(\${TARGET_NAME} PRIVATE
+    \${CMAKE_CURRENT_SOURCE_DIR}
+    \${CMAKE_CURRENT_SOURCE_DIR}/include
+    \${CMAKE_CURRENT_SOURCE_DIR}/../include
+    \${CMAKE_CURRENT_SOURCE_DIR}/customer-files/headers
+    \${CMAKE_CURRENT_SOURCE_DIR}/../customer-files/headers
+)
+
+# Find all header directories dynamically
+file(GLOB_RECURSE HEADER_FILES "*.h" "*.hpp")
+foreach(HEADER_FILE \${HEADER_FILES})
+    get_filename_component(HEADER_DIR \${HEADER_FILE} DIRECTORY)
+    target_include_directories(\${TARGET_NAME} PRIVATE \${HEADER_DIR})
+endforeach()
+
+target_link_libraries(\${TARGET_NAME}
+    Threads::Threads
+)`;
+            
+            await fs.promises.writeFile(`${app_dir}/app/src/CMakeLists.txt`, cmakeContent, 'utf8');
+
+        } catch(err) {
+            console.log("Error on write files")
+            console.log(err)
+            await socket.emit("compile_cpp_reply", {
+                "status": "err_write_files",
+                "result": err.toString(),
+                "cmd": "compile_cpp",
+                "data": "",
+                "isDone": true,
+                "code": 1
+            })
+            return
+        }
+
+        // ----------- Build with CMake -----------
+        try {
+            // Create build directory
+            await fs.promises.mkdir(`${app_dir}/build`, { recursive: true });
+
+            // Run cmake configuration
+            const pConfigure = spawn('cmake', ['..'], { cwd: `${app_dir}/build` });
+
+            pConfigure.stdout.on('data', async (data) => {
+                await socket.emit("compile_cpp_reply", {
+                    "status": "configure-stdout",
+                    "cmd": "compile_cpp",
+                    "data": "",
+                    "isDone": false,
+                    "result": `${data}`,
+                    "code": 0
+                })
+            });
+
+            pConfigure.stderr.on('data', async (data) => {
+                await socket.emit("compile_cpp_reply", {
+                    "status": "configure-stderr",
+                    "cmd": "compile_cpp",
+                    "data": "",
+                    "isDone": false,
+                    "result": `${data}`,
+                    "code": 0
+                })
+            });
+
+            pConfigure.on('close', async (code) => {
+                if (code !== 0) {
+                    await socket.emit("compile_cpp_reply", {
+                        "status": "configure-failed",
+                        "cmd": "compile_cpp",
+                        "data": "",
+                        "isDone": true,
+                        "result": `CMake configuration failed with code ${code}\r\n`,
+                        "code": code
+                    })
+                    return;
+                }
+
+                // Run make build
+                const pBuild = spawn('make', [], { cwd: `${app_dir}/build` });
+
+                pBuild.stdout.on('data', async (data) => {
+                    await socket.emit("compile_cpp_reply", {
+                        "status": "build-stdout",
+                        "cmd": "compile_cpp",
+                        "data": "",
+                        "isDone": false,
+                        "result": `${data}`,
+                        "code": 0
+                    })
+                });
+
+                pBuild.stderr.on('data', async (data) => {
+                    await socket.emit("compile_cpp_reply", {
+                        "status": "build-stderr",
+                        "cmd": "compile_cpp",
+                        "data": "",
+                        "isDone": false,
+                        "result": `${data}`,
+                        "code": 0
+                    })
+                });
+
+                pBuild.on('close', async (code) => {
+                    // Don't mark as done yet if we're going to run the executable
+                    const willRun = data["run"] === true && code === 0;
+                    
+                    await socket.emit("compile_cpp_reply", {
+                        "status": "build-done",
+                        "cmd": "compile_cpp",
+                        "data": "",
+                        "isDone": !willRun,
+                        "result": `Build completed with code ${code}\r\n`,
+                        "code": code
+                    })
+
+                    if (code === 0) {
+                        let executablePath = `${app_dir}/build/app/src/app`;
+                        let outputPath = process.env.CONTAINER_MODE === 'true' 
+                            ? `/home/dev/data/output/${app_name}`
+                            : `../output/${app_name}`;
+                        
+                        try {
+                            // Ensure output directory exists
+                            await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+                            // Copy executable to output directory
+                            await fs.promises.copyFile(executablePath, outputPath);
+                            await fs.promises.chmod(outputPath, 0o755);
+                        } catch(err) {
+                            console.log("Error copying executable:", err);
+                        }
+
+                        // Run the application if requested
+                        if(data["run"] === true) {
+                            try {
+                                // Use absolute path to executable
+                                const absoluteExecPath = path.resolve(executablePath);
+                                const pRun = spawn(absoluteExecPath, [], {
+                                    cwd: path.dirname(absoluteExecPath)
+                                });
+                                
+                                pRun.stdout.on('data', async (data) => {
+                                    await socket.emit("compile_cpp_reply", {
+                                        "status": "run-stdout",
+                                        "cmd": "compile_cpp",
+                                        "data": "",
+                                        "isDone": false,
+                                        "result": `${data}`,
+                                        "code": 0
+                                    })
+                                });
+                        
+                                pRun.stderr.on('data', async (data) => {
+                                    await socket.emit("compile_cpp_reply", {
+                                        "status": "run-stderr",
+                                        "cmd": "compile_cpp",
+                                        "data": "",
+                                        "isDone": false,
+                                        "result": `${data}`,
+                                        "code": 0
+                                    })
+                                });
+
+                                pRun.on('close', async (code) => {
+                                    await socket.emit("compile_cpp_reply", {
+                                        "status": "run-done",
+                                        "cmd": "compile_cpp",
+                                        "data": "",
+                                        "isDone": true,
+                                        "result": `App exit code ${code}\r\n`,
+                                        "code": code
+                                    })
+                                })
+                            } catch(err) {
+                                console.log("Error running executable:", err);
+                            }
+                        }
+                    }
+                });
+            });
+
+        } catch(err) {
+            console.log("Error during build process")
+            console.log(err)
+            await socket.emit("compile_cpp_reply", {
+                "status": "err_build",
+                "result": err.toString(),
+                "cmd": "compile_cpp",
+                "data": "",
+                "isDone": true,
+                "code": 1
+            })
+        }
+    })
+
+    // Rust compilation handler (from original implementation)
+    socket.on('compile_rust', async (data) => {
+
+        if(!data["code"] || !data["app_name"]) {
+            socket.emit('compile_rust_reply', {
+                "status": "err: invalid",
+                "result": "Invalid request, missing code or name\r\n",
+                "cmd": "compile_rust",
+                "data": "",
+                "isDone": true,
+                "code": 0
+            })
+            return
+        }
+
+        // --------------------------------------------
+
+        socket.emit("compile_rust_reply", {
+            "status": "compile-start",
+            "result": "Start to compile app...\r\n",
+            "cmd": "compile_rust",
+            "data": "",
+            "isDone": false,
+            "code": 0
+        })
+
+        let app_name = "app_" + socket.id
+        let app_dir = process.env.CONTAINER_MODE === 'true' 
+            ? `/home/dev/data/ws/${app_name}`
+            : `../../ws/${app_name}`
+        
+        let std_path = process.env.CONTAINER_MODE === 'true' 
+            ? "/home/dev/data/ws/standard"
+            : "../../ws/standard"
+
+        // --------------------------------------------
+        try {
+            await copyDirectory(std_path, app_dir)
+        } catch(err){
+            console.log("Error on copy file")
+            console.log(err)
+            await socket.emit("compile_rust_reply", {
+                "status": "err-copy-folder",
+                "result": err,
+                "cmd": "compile_rust",
+                "data": "",
+                "isDone": true,
+                "code": 0
+            })
+            return
+        }
+
+        // ----------- Detect custom Cargo.toml file -----------
+        const regex = /\/\*Cargo\.toml([\s\S]*?)\*\//g;
+        const cargo_content = [];
+        let match;
+
+        const extractDependencies = (content) => {
+            const data = toml.parse(content);
+            console.log("Deps extracted")
+            return data.dependencies;
+        };
+
+        const overwriteDependencies = async (filePath, newDependencies) => {
+            const fileContent = await fs.promises.readFile(filePath, 'utf-8');
+            const data = toml.parse(fileContent);
+            data.dependencies = newDependencies;
+            const updatedContent = tomlify.toToml(data, { space: 2 });
+            console.log("Cargo.toml deps updated")
+            fs.promises.writeFile(filePath, updatedContent);
+        };
+
+        if ((match = regex.exec(data['code'])) !== null) {
+            cargo_content.push(match[1].trim());
+            try {
+                const deps = extractDependencies(cargo_content)
+                overwriteDependencies(`${app_dir}/Cargo.toml`, deps);
+            } catch(err) {
+                console.log("Error on writing custom Cargo.toml file")
+                console.log(err)
+                await socket.emit("compile_rust_reply", {
+                    "status": "err_write_cargo_file",
+                    "result": err,
+                    "cmd": "compile_rust",
+                    "data": "",
+                    "isDone": true,
+                    "code": 0
+                })
+                return
+            }
+        }
+
+        // -------------------------------------------
+        try {
+            await fs.promises.writeFile(`${app_dir}/src/main.rs`, data['code'], 'utf8')
+        } catch(err) {
+            console.log("Error on write file")
+            console.log(err)
+            await socket.emit("compile_rust_reply", {
+                "status": "err_write_file",
+                "result": err,
+                "cmd": "compile_rust",
+                "data": "",
+                "isDone": true,
+                "code": 0
+            })
+            return
+        }
+        // -------------------------------------------
+        const pCompile = spawn('cargo', ['build'], { cwd: app_dir });
+
+        pCompile.stdout.on('data', async (data) => {
+            await socket.emit("compile_rust_reply", {
+                "status": "compile-stdout",
+                "cmd": "compile_rust",
+                "data": "",
+                "isDone": false,
+                "result": `${data}`,
+                "code": 0
+            })
+        });
+
+        pCompile.stderr.on('data', async (data) => {
+            await socket.emit("compile_rust_reply", {
+                "status": "compile-stderr",
+                "cmd": "compile_rust",
+                "data": "",
+                "isDone": false,
+                "result": `${data}`,
+                "code": 0
+            })
+        });
+
+        pCompile.on('close', async (code) => {
+            await socket.emit("compile_rust_reply", {
+                "status": "compile-done",
+                "cmd": "compile_rust",
+                "data": "",
+                "isDone": true,
+                "result": "Compile done\r\n",
+                "code": code
+            })
+
+            let outputPath = process.env.CONTAINER_MODE === 'true' 
+                ? `/home/dev/data/output/${app_name}`
+                : `../../output/${app_name}`;
+
+            try {
+                await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+                await fs.promises.copyFile(`${app_dir}/target/debug/app`, outputPath);
+            } catch(err) {
+                return
+            }
+
+            //remove dir
+            try {
+                if (fs.promises.rm) {
+                    await fs.promises.rm(app_dir, { recursive: true, force: true });
+                } else {
+                    // Fallback for older Node.js versions
+                    spawn('rm', ['-rf', app_dir]);
+                }
+            } catch(err){}
+
+            if(data["run"] == true) {
+                try {
+                    let execute_file = outputPath
+                    await fs.promises.chmod(execute_file, 0o777)
+                    const pRun = spawn(execute_file, [], {  });
+                    pRun.stdout.on('data', async (data) => {
+                        await socket.emit("compile_rust_reply", {
+                            "status": "run-stdout",
+                            "cmd": "compile_rust",
+                            "data": "",
+                            "isDone": false,
+                            "result": `${data}`,
+                            "code": 0
+                        })
+                    });
+            
+                    pRun.stderr.on('data', async (data) => {
+                        await socket.emit("compile_rust_reply", {
+                            "status": "run-stderr",
+                            "cmd": "compile_rust",
+                            "data": "",
+                            "isDone": false,
+                            "result": `${data}`,
+                            "code": 0
+                        })
+                    });
+
+                    pRun.on('close', async (code) => {
+                        await socket.emit("compile_rust_reply", {
+                            "status": "run-done",
+                            "cmd": "compile_rust",
+                            "data": "",
+                            "isDone": true,
+                            "result": `App exit code ${code}\r\n`,
+                            "code": code
+                        })
+                    })
+                } catch(err) {}
+            }
+        });
+        // -------------------------------------------
+        
+    })
+
 });
 
 server.listen(config.port, () => {
-    console.log(`Listening on port ${config.port}`);
+    console.log(`SDV Runtime Kit Manager with Multi-language Compilation listening on port ${config.port}`);
+    console.log(`Available compilation endpoints: compile_rust, compile_cpp`);
 });

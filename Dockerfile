@@ -14,6 +14,7 @@ RUN groupadd -r sdvr && useradd -r -g sdvr dev \
     && apt-get update \
     && apt-get install -y --no-install-recommends python3 mosquitto \
     ca-certificates python-is-python3 python3-pip nano git \
+    build-essential cmake make gcc g++ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -29,6 +30,7 @@ RUN groupadd -r sdvr && useradd -r -g sdvr dev \
     && apt-get update \
     && apt-get install -y --no-install-recommends python3 mosquitto \
     ca-certificates python-is-python3 python3-pip nano git \
+    build-essential cmake make gcc g++ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* 
 

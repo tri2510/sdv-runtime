@@ -18,6 +18,8 @@
     "socket.io": "^4.7.1",
     "http-status-codes": "^2.2.0",
     "axios": "^0.27.2",
-    "buffer": "^6.0.3"
+    "buffer": "^6.0.3",
+    "toml": "^3.0.0",
+    "tomlify-j0.4": "^3.0.0"
   }
 }
