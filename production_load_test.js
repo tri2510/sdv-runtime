@@ -1,7 +1,38 @@
 const io = require('socket.io-client');
+const fs = require('fs').promises;
+const path = require('path');
 
 console.log('🚀 Production SDV Runtime Load Testing');
 console.log('======================================\n');
+
+async function loadTestFiles(testDir) {
+    const files = {};
+    
+    try {
+        // Read all files in the test directory recursively
+        async function readDir(dir, baseDir = '') {
+            const items = await fs.readdir(dir, { withFileTypes: true });
+            
+            for (const item of items) {
+                const fullPath = path.join(dir, item.name);
+                const relativePath = baseDir ? path.join(baseDir, item.name) : item.name;
+                
+                if (item.isDirectory()) {
+                    await readDir(fullPath, relativePath);
+                } else if (item.isFile() && (item.name.endsWith('.cpp') || item.name.endsWith('.h'))) {
+                    const content = await fs.readFile(fullPath, 'utf8');
+                    files[relativePath] = content;
+                }
+            }
+        }
+        
+        await readDir(testDir);
+        return files;
+    } catch (error) {
+        console.error('❌ Failed to load test files:', error.message);
+        return null;
+    }
+}
 
 class ProductionLoadTester {
     constructor(containerUrl = 'http://localhost:3090') {
@@ -10,24 +41,23 @@ class ProductionLoadTester {
         this.activeConnections = 0;
     }
     
-    createTestProject(clientId) {
-        return {
-            "main.cpp": `#include <iostream>
-#include <chrono>
-#include <thread>
-#include "client_config.h"
-
-int main() {
-    std::cout << "Production SDV Load Test Client ${clientId} starting..." << std::endl;
-    
-    // Simulate variable workload based on client ID
-    auto start = std::chrono::high_resolution_clock::now();
-    
-    // Some computational work that scales with client ID
-    volatile long sum = 0;
-    for(int i = 0; i < CLIENT_WORKLOAD * ${clientId}; ++i) {
-        sum += i * ${clientId};
-    }
+    async createTestProject(clientId) {
+        // Load base test files and modify for load testing
+        const baseFiles = await loadTestFiles('./tests/simple');
+        if (!baseFiles) {
+            throw new Error('Could not load base test files');
+        }
+        
+        // Modify main.cpp to include client ID
+        const modifiedFiles = { ...baseFiles };
+        if (modifiedFiles['main.cpp']) {
+            modifiedFiles['main.cpp'] = modifiedFiles['main.cpp'].replace(
+                '=== SIMPLE SDV COMPILATION TEST ===',
+                `=== LOAD TEST CLIENT ${clientId} ===`
+            );
+        }
+        
+        return modifiedFiles;
     
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -45,8 +75,6 @@ int main() {
 #define PRODUCTION_SDV_VERSION "2.0.0"
 #define LOAD_TEST_ENABLED true
 
-#endif`
-        };
     }
     
     runLoadTest(numClients = 3, staggerDelay = 800) {
@@ -77,11 +105,12 @@ int main() {
         const clientStartTime = Date.now();
         this.activeConnections++;
         
-        socket.on('connect', () => {
+        socket.on('connect', async () => {
             console.log(`🔌 Production Client ${clientId} connected (${this.activeConnections} active)`);
             
+            const projectFiles = await this.createTestProject(clientId);
             socket.emit('compile_cpp', {
-                files: this.createTestProject(clientId),
+                files: projectFiles,
                 app_name: `prod_load_test_client_${clientId}`,
                 run: true
             });

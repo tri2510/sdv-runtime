@@ -185,7 +185,7 @@ io.on('connection', (socket) => {
     })
 
     socket.on('report-runtime-state', (payload) => {
-        let kit_id = payload?.kit_id || null
+        let kit_id = (payload && payload.kit_id) || null
         if(kit_id && payload.data) {
                         let kit = KITS.get(kit_id)
                         if(!kit) return
@@ -274,7 +274,7 @@ io.on('connection', (socket) => {
                 if(payload.disable_code_convert) {
                         convertedCode = payload.code
                 } else {
-                        convertedCode = await convertPgCode(payload.prototype?.name || 'App', payload.code || '')
+                        convertedCode = await convertPgCode((payload.prototype && payload.prototype.name) || 'App', payload.code || '')
                 }
                 // console.log(`convertedCode`)
                 // console.log(convertedCode)

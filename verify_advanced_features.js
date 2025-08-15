@@ -1,178 +1,69 @@
 const io = require('socket.io-client');
+const fs = require('fs').promises;
+const path = require('path');
 
 console.log('🔬 VERIFICATION: Advanced Features Test');
 console.log('=====================================\n');
 
 const socket = io('http://localhost:3090');
 
-// Advanced project with deep nested structure and complex dependencies
-const advancedProject = {
-    "main.cpp": `#include <iostream>
-#include <vector>
-#include <memory>
-#include "deep/nested/component.h"
-#include "modules/data_processor.h" 
-#include "utils/math/calculations.h"
-#include "config/system_config.h"
-
-int main() {
-    std::cout << "=== ADVANCED FEATURE VERIFICATION ===" << std::endl;
+async function loadTestFiles(testDir) {
+    const files = {};
     
-    // Test deep nested includes
-    auto component = std::make_unique<DeepNestedComponent>();
-    component->initialize();
-    
-    // Test cross-module dependencies
-    DataProcessor processor;
-    std::vector<double> data = {1.5, 2.7, 3.9, 4.2, 5.8};
-    
-    auto result = processor.processVector(data);
-    std::cout << "Processed " << data.size() << " elements" << std::endl;
-    
-    // Test mathematical utilities
-    double sum = MathUtils::calculateSum(data);
-    double avg = MathUtils::calculateAverage(data);
-    
-    std::cout << "Sum: " << sum << ", Average: " << avg << std::endl;
-    
-    // Test configuration system
-    std::cout << "System Version: " << SYSTEM_VERSION << std::endl;
-    std::cout << "Max Processing Elements: " << MAX_ELEMENTS << std::endl;
-    
-    std::cout << "✅ All advanced features verified successfully!" << std::endl;
-    
-    return 0;
-}`,
-
-    "deep/nested/component.cpp": `#include "component.h"
-#include <iostream>
-
-void DeepNestedComponent::initialize() {
-    initialized = true;
-    std::cout << "[DEEP] Deep nested component initialized" << std::endl;
-}
-
-bool DeepNestedComponent::isReady() const {
-    return initialized;
-}`,
-
-    "modules/data_processor.cpp": `#include "data_processor.h"
-#include "../utils/math/calculations.h"
-#include <algorithm>
-
-std::vector<double> DataProcessor::processVector(const std::vector<double>& input) {
-    std::vector<double> result = input;
-    
-    // Apply processing using math utilities
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](double x) { return x * 1.5; });
-    
-    return result;
-}
-
-double DataProcessor::getProcessingFactor() const {
-    return 1.5;
-}`,
-
-    "utils/math/calculations.cpp": `#include "calculations.h"
-#include <numeric>
-
-double MathUtils::calculateSum(const std::vector<double>& data) {
-    return std::accumulate(data.begin(), data.end(), 0.0);
-}
-
-double MathUtils::calculateAverage(const std::vector<double>& data) {
-    if (data.empty()) return 0.0;
-    return calculateSum(data) / data.size();
-}
-
-double MathUtils::calculateStandardDeviation(const std::vector<double>& data) {
-    if (data.size() <= 1) return 0.0;
-    
-    double mean = calculateAverage(data);
-    double sum = 0.0;
-    
-    for (double value : data) {
-        sum += (value - mean) * (value - mean);
+    try {
+        // Read all files in the test directory recursively
+        async function readDir(dir, baseDir = '') {
+            const items = await fs.readdir(dir, { withFileTypes: true });
+            
+            for (const item of items) {
+                const fullPath = path.join(dir, item.name);
+                const relativePath = baseDir ? path.join(baseDir, item.name) : item.name;
+                
+                if (item.isDirectory()) {
+                    await readDir(fullPath, relativePath);
+                } else if (item.isFile() && (item.name.endsWith('.cpp') || item.name.endsWith('.h'))) {
+                    const content = await fs.readFile(fullPath, 'utf8');
+                    files[relativePath] = content;
+                    console.log(`📄 Loaded: ${relativePath} (${content.length} chars)`);
+                }
+            }
+        }
+        
+        await readDir(testDir);
+        return files;
+    } catch (error) {
+        console.error('❌ Failed to load test files:', error.message);
+        return null;
     }
-    
-    return std::sqrt(sum / (data.size() - 1));
-}`,
+}
 
-    "include/deep/nested/component.h": `#ifndef DEEP_NESTED_COMPONENT_H
-#define DEEP_NESTED_COMPONENT_H
-
-class DeepNestedComponent {
-private:
-    bool initialized = false;
-
-public:
-    void initialize();
-    bool isReady() const;
-};
-
-#endif`,
-
-    "include/modules/data_processor.h": `#ifndef DATA_PROCESSOR_H
-#define DATA_PROCESSOR_H
-
-#include <vector>
-
-class DataProcessor {
-public:
-    std::vector<double> processVector(const std::vector<double>& input);
-    double getProcessingFactor() const;
-};
-
-#endif`,
-
-    "include/utils/math/calculations.h": `#ifndef CALCULATIONS_H
-#define CALCULATIONS_H
-
-#include <vector>
-#include <cmath>
-
-class MathUtils {
-public:
-    static double calculateSum(const std::vector<double>& data);
-    static double calculateAverage(const std::vector<double>& data);
-    static double calculateStandardDeviation(const std::vector<double>& data);
-};
-
-#endif`,
-
-    "include/config/system_config.h": `#ifndef SYSTEM_CONFIG_H
-#define SYSTEM_CONFIG_H
-
-#define SYSTEM_VERSION "3.0.0-advanced"
-#define MAX_ELEMENTS 10000
-#define PROCESSING_ENABLED true
-#define DEEP_NESTING_SUPPORT true
-#define CROSS_MODULE_DEPENDENCIES true
-
-// Advanced feature flags
-#define FEATURE_MATH_UTILS true
-#define FEATURE_DATA_PROCESSING true
-#define FEATURE_NESTED_COMPONENTS true
-
-#endif`
-};
+// Advanced features test using multifile test directory
+// Advanced project definition removed - now uses ./tests/multifile/ directory
 
 let phases = [];
 let fileCount = 0;
 let startTime = Date.now();
 
-socket.on('connect', () => {
+socket.on('connect', async () => {
     console.log('🔌 Connected for advanced feature testing');
-    console.log('📁 Project structure:');
-    console.log('  - 8 files across 6 different directories');
-    console.log('  - Deep nested includes (3+ levels)');
+    
+    // Load advanced multi-file test files
+    const testFiles = await loadTestFiles('./tests/multifile');
+    
+    if (!testFiles) {
+        console.log('❌ Could not load test files');
+        socket.disconnect();
+        return;
+    }
+    
+    console.log(`📁 Project structure: ${Object.keys(testFiles).length} files loaded`);
+    console.log('  - Multi-directory structure');
     console.log('  - Cross-module dependencies');
     console.log('  - Complex header resolution');
     console.log('📤 Uploading advanced project...\n');
     
     socket.emit('compile_cpp', {
-        files: advancedProject,
+        files: testFiles,
         app_name: "advanced_features_test",
         run: true
     });

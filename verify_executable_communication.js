@@ -1,89 +1,64 @@
 const io = require('socket.io-client');
 const fs = require('fs').promises;
 const { spawn } = require('child_process');
+const path = require('path');
 
 console.log('🔧 VERIFICATION: Executable Communication Test');
 console.log('=============================================\n');
 
 const socket = io('http://localhost:3090');
 
-// Test project that creates an executable with communication capabilities
-const communicationProject = {
-    "main.cpp": `#include <iostream>
-#include <string>
-#include <chrono>
-#include <thread>
-#include <fstream>
-#include "config.h"
-
-int main() {
-    std::cout << "=== EXECUTABLE COMMUNICATION TEST ===" << std::endl;
+async function loadTestFiles(testDir) {
+    const files = {};
     
-    // Test 1: Standard output communication
-    std::cout << "MESSAGE:Hello from compiled executable!" << std::endl;
-    std::cout << "STATUS:Executable started successfully" << std::endl;
-    
-    // Test 2: File-based communication
-    std::ofstream outputFile("/tmp/executable_output.txt");
-    if (outputFile.is_open()) {
-        outputFile << "File communication test successful\\n";
-        outputFile << "Timestamp: " << std::chrono::duration_cast<std::chrono::seconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count() << "\\n";
-        outputFile << "Version: " << VERSION << "\\n";
-        outputFile.close();
-        std::cout << "FILE:Output file created at /tmp/executable_output.txt" << std::endl;
-    } else {
-        std::cout << "ERROR:Failed to create output file" << std::endl;
+    try {
+        // Read all files in the test directory recursively
+        async function readDir(dir, baseDir = '') {
+            const items = await fs.readdir(dir, { withFileTypes: true });
+            
+            for (const item of items) {
+                const fullPath = path.join(dir, item.name);
+                const relativePath = baseDir ? path.join(baseDir, item.name) : item.name;
+                
+                if (item.isDirectory()) {
+                    await readDir(fullPath, relativePath);
+                } else if (item.isFile() && (item.name.endsWith('.cpp') || item.name.endsWith('.h'))) {
+                    const content = await fs.readFile(fullPath, 'utf8');
+                    files[relativePath] = content;
+                    console.log(`📄 Loaded: ${relativePath} (${content.length} chars)`);
+                }
+            }
+        }
+        
+        await readDir(testDir);
+        return files;
+    } catch (error) {
+        console.error('❌ Failed to load test files:', error.message);
+        return null;
     }
-    
-    // Test 3: Return code communication
-    std::cout << "RETURN_CODE:About to return success code 42" << std::endl;
-    
-    // Test 4: Timing communication
-    auto start = std::chrono::high_resolution_clock::now();
-    
-    // Simulate some work
-    volatile long sum = 0;
-    for(int i = 0; i < 1000000; ++i) {
-        sum += i;
-    }
-    
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    
-    std::cout << "PERFORMANCE:Work completed in " << duration.count() << "ms" << std::endl;
-    std::cout << "RESULT:Sum calculated as " << sum << std::endl;
-    
-    // Test 5: Multi-line output
-    std::cout << "MULTILINE_START" << std::endl;
-    std::cout << "Line 1 of multiline output" << std::endl;
-    std::cout << "Line 2 with special chars: @#$%^&*()" << std::endl;
-    std::cout << "Line 3 with numbers: 12345" << std::endl;
-    std::cout << "MULTILINE_END" << std::endl;
-    
-    std::cout << "FINAL:All communication tests completed successfully!" << std::endl;
-    
-    return 42; // Custom return code for testing
-}`,
-    
-    "config.h": `#ifndef CONFIG_H
-#define CONFIG_H
-#define VERSION "1.0.0-communication-test"
-#define BUILD_TYPE "Communication Verification"
-#endif`
-};
+}
 
 let compilationPhases = [];
 let executionOutput = [];
 let startTime = Date.now();
 let executablePath = '';
 
-socket.on('connect', () => {
+socket.on('connect', async () => {
     console.log('🔌 Connected for executable communication testing');
-    console.log('📤 Uploading communication test project...\n');
+    
+    // Load communication test files
+    const testFiles = await loadTestFiles('./tests/communication');
+    
+    if (!testFiles) {
+        console.log('❌ Could not load test files');
+        socket.disconnect();
+        return;
+    }
+    
+    console.log(`📤 Uploading communication test project with ${Object.keys(testFiles).length} files...\n`);
     
     socket.emit('compile_cpp', {
-        files: communicationProject,
+        files: testFiles,
         app_name: "communication_test",
         run: true  // This will test execution
     });
