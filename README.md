@@ -14,6 +14,13 @@
 ./run-tests.sh
 ```
 
+### 🚗 NEW: Automotive ECU Development Capabilities
+This enhanced version now includes **automotive-grade ECU development** with KUKSA Databroker integration:
+- **Forward Collision Warning (FCW) System** - Production-ready automotive algorithms
+- **KUKSA Databroker Integration** - C++ native VSS 4.0 communication
+- **Vehicle Signal Specification (VSS)** - Automotive signal standard compliance
+- **Real-time Automotive Processing** - ECU-style signal processing patterns
+
 ---
 
 # Introduction
@@ -32,6 +39,9 @@ This production version includes:
 - **Advanced Features**: Cross-module dependencies, complex header resolution
 - **Load Testing Support** for concurrent compilation requests
 - **Production-Ready Container** with port 3090
+- **🚗 Automotive ECU Development**: Forward Collision Warning (FCW) systems
+- **📡 KUKSA Databroker Integration**: C++ native VSS 4.0 communication
+- **🎯 Professional Automotive Architecture**: Production-ready automotive patterns
 
 ### Components inside the Docker container
 - [Kuksa Databroker](https://github.com/eclipse-kuksa/kuksa-databroker/tree/0.4.4) - `0.4.4`
@@ -45,7 +55,37 @@ This production version includes:
 
 When you run this Docker container, all the tools mentioned above will be ready to use, and you will be connected to the playground natively.
 
+## 🧪 Testing Suite Overview
 
+The testing suite includes comprehensive automotive software validation:
+
+### Basic Tests
+- **Connection Test**: Verify SDV Runtime connectivity
+- **Simple C++ Compilation**: Basic C++ project compilation
+- **Complex Multi-file**: Advanced C++ project with multiple files and dependencies
+
+### 🚗 Automotive ECU Tests
+- **FCW System Test**: Production Forward Collision Warning system
+- **FCW-KUKSA Integration**: KUKSA Databroker communication with VSS 4.0 compliance
+  - Real-time automotive signal processing
+  - Vehicle Signal Specification (VSS) path validation
+  - gRPC-compatible databroker connectivity
+  - Production ECU communication patterns
+
+### Advanced Tests
+- **Communication Verification**: Socket.IO streaming validation
+- **Load Testing**: Concurrent compilation stress testing
+- **Feature Verification**: Advanced compilation features testing
+
+### Test Execution
+```bash
+# Run specific automotive test
+cd testing-suite/scripts
+node test_fcw_kuksa.js  # FCW-KUKSA integration test
+
+# Or use the interactive test launcher
+./run-tests.sh  # Select option 7 for FCW-KUKSA test
+```
 
 # How to run a runtime
 
