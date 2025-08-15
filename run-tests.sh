@@ -109,12 +109,13 @@ echo "3. Complex multi-file compilation test"
 echo "4. Communication verification test"
 echo "5. Advanced features test"
 echo "6. FCW System test (automotive)"
-echo "7. Load testing"
-echo "8. Run complete test suite"
-echo "9. Inspect test files"
+echo "7. FCW-KUKSA Integration test (automotive + databroker)"
+echo "8. Load testing"
+echo "9. Run complete test suite"
+echo "10. Inspect test files"
 echo ""
 
-read -p "Enter your choice (1-9): " choice
+read -p "Enter your choice (1-10): " choice
 
 case $choice in
     1)
@@ -142,14 +143,18 @@ case $choice in
         node test_fcw_system.js
         ;;
     7)
+        echo "📡 Running FCW-KUKSA Integration test..."
+        node test_fcw_kuksa.js
+        ;;
+    8)
         echo "🚀 Running load testing..."
         node production_load_test.js
         ;;
-    8)
+    9)
         echo "🎯 Running complete test suite..."
         node run_file_based_tests.js
         ;;
-    9)
+    10)
         echo "🔍 Inspecting test files..."
         cd ../utilities
         ./inspect_test_files.sh
