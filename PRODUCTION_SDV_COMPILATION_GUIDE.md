@@ -56,9 +56,28 @@ git checkout enhanced-compilation-service
 ls -la Kit-Manager/src/index.js  # Should show enhanced compilation code
 ```
 
-### 1.2 Build the Production Container
+### 1.2 Complete Automated Setup
 ```bash
-# Build using the simplified Kit-Manager Dockerfile
+# Option A: Use the comprehensive setup script (recommended for first-time setup)
+./setup-sdv-runtime.sh
+
+# This will automatically:
+# - Install Node.js dependencies (socket.io-client)
+# - Build container using Dockerfile.kitmanager
+# - Start container with correct port mapping (3090)
+# - Create docker-output directory
+# - Verify setup with connection test
+# - Provide next steps and troubleshooting info
+
+# Option B: Use test launcher with container setup (for existing setups)
+./run-tests.sh
+
+# When prompted, choose 'y' to automatically build and start container
+```
+
+### 1.3 Manual Container Build and Start
+```bash
+# Option 1: Build using the simplified Kit-Manager Dockerfile
 docker build -f Dockerfile.kitmanager \
   --tag sdv-runtime-production:latest \
   --progress=plain \
@@ -70,14 +89,15 @@ docker build -f Dockerfile.kitmanager \
 
 # Verify the image was created
 docker images | grep sdv-runtime-production
-```
 
-### 1.3 Start the Production Container
-```bash
-# Create output directory for compiled executables
+# Option 2: Create output directory for compiled executables
 mkdir -p docker-output
 
-# Run container with proper port mapping (3090, not 5000!)
+# Option 3: Stop and remove any existing container (if needed)
+docker stop sdv-runtime-container 2>/dev/null || true
+docker rm sdv-runtime-container 2>/dev/null || true
+
+# Option 4: Run container with proper port mapping (3090, not 5000!)
 docker run -d \
   --name sdv-runtime-container \
   --publish 3090:3090 \
@@ -105,24 +125,29 @@ docker logs sdv-runtime-container
 
 ### 2.1 Overview of Test Structure
 
-The SDV Runtime now uses a **transparent file-based testing system** where all C++ source code is stored in separate, inspectable files instead of inline strings.
+The SDV Runtime now uses a **transparent file-based testing system** organized in a dedicated testing suite where all C++ source code is stored in separate, inspectable files instead of inline strings.
 
 ```
-tests/
-├── simple/          # Basic 2-file C++ projects  
-│   ├── main.cpp     # Simple SDV test program
-│   └── config.h     # Configuration headers
-├── multifile/       # Complex multi-directory projects
-│   ├── main.cpp     # Vehicle system main program
-│   ├── vehicle/     # Vehicle classes and management
-│   ├── sensors/     # Sensor data processing
-│   ├── utils/       # Logging and utility functions
-│   └── config/      # System configuration
-├── communication/   # Communication and I/O testing
-│   ├── main.cpp     # File I/O, exit codes, performance tests
-│   └── communication.h
-└── network/         # Network programming tests
-    └── main.cpp     # Socket programming examples
+testing-suite/
+├── test-data/
+│   └── tests/
+│       ├── simple/          # Basic 2-file C++ projects  
+│       │   ├── main.cpp     # Simple SDV test program
+│       │   └── config.h     # Configuration headers
+│       ├── multifile/       # Complex multi-directory projects
+│       │   ├── main.cpp     # Vehicle system main program
+│       │   ├── vehicle/     # Vehicle classes and management
+│       │   ├── sensors/     # Sensor data processing
+│       │   ├── utils/       # Logging and utility functions
+│       │   └── config/      # System configuration
+│       ├── communication/   # Communication and I/O testing
+│       │   ├── main.cpp     # File I/O, exit codes, performance tests
+│       │   └── communication.h
+│       └── network/         # Network programming tests
+│           └── main.cpp     # Socket programming examples
+├── scripts/                 # All test execution scripts
+├── documentation/           # Test guides and reports
+└── utilities/               # Helper scripts and tools
 ```
 
 ### 2.2 Install Dependencies and Inspect Test Files
@@ -132,17 +157,20 @@ tests/
 npm install socket.io-client
 
 # View all available test files and structure
-./inspect_test_files.sh
+./testing-suite/utilities/inspect_test_files.sh
+
+# OR use the convenient test launcher
+./run-tests.sh
 
 # Examine specific test categories
-ls -la tests/simple/
-ls -la tests/multifile/
-ls -la tests/communication/
+ls -la testing-suite/test-data/tests/simple/
+ls -la testing-suite/test-data/tests/multifile/
+ls -la testing-suite/test-data/tests/communication/
 
 # Inspect individual test files  
-cat tests/simple/main.cpp              # Basic SDV program
-cat tests/multifile/vehicle/Vehicle.h  # Vehicle class definition
-cat tests/communication/main.cpp       # Communication testing
+cat testing-suite/test-data/tests/simple/main.cpp              # Basic SDV program
+cat testing-suite/test-data/tests/multifile/vehicle/Vehicle.h  # Vehicle class definition
+cat testing-suite/test-data/tests/communication/main.cpp       # Communication testing
 ```
 
 ### 3.1 Simple Connection Test

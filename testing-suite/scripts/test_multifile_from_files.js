@@ -70,7 +70,7 @@ socket.on('connect', async () => {
     console.log('🔌 Connected to SDV Runtime');
     
     // Load multi-file test files
-    const testFiles = await loadTestFiles('./tests/multifile');
+    const testFiles = await loadTestFiles('../test-data/tests/multifile');
     
     if (!testFiles) {
         console.log('❌ Could not load test files');

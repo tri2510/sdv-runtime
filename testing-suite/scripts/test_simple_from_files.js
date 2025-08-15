@@ -41,7 +41,7 @@ socket.on('connect', async () => {
     console.log('🔌 Connected to SDV Runtime');
     
     // Load simple test files
-    const testFiles = await loadTestFiles('./tests/simple');
+    const testFiles = await loadTestFiles('../test-data/tests/simple');
     
     if (!testFiles) {
         console.log('❌ Could not load test files');

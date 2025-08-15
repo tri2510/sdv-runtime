@@ -1,8 +1,37 @@
+# SDV Runtime Production - Enhanced C++ Compilation
+
+> **🚀 NEW: This enhanced version includes powerful C++ and Rust compilation capabilities with real-time streaming and multi-file project support!**
+
+## Quick Start
+
+### 🎯 Complete Setup (Recommended for first-time users)
+```bash
+./setup-sdv-runtime.sh
+```
+
+### 🧪 Run Tests
+```bash
+./run-tests.sh
+```
+
+---
+
 # Introduction
 Want to try out SDV (Software Defined Vehicles) without installing lots of things? The sdv-runtime Docker container has everything you need to run your QM apps. It's made for people who are new to SDV and want to learn and practice without a complicated setup.
+
 The `sdv-runtime` connects natively with [playground.digital.auto](https://playground.digital.auto) where you can ideation, coding and present your automotive feature.
 
 Since it is a docker container, it can run on cloud, your PC or even on rapsberry pi. It supports arm64 and arm64.
+
+## 🔨 Enhanced Compilation Features
+
+This production version includes:
+- **Multi-file C++ Project Compilation** with CMake integration
+- **Real-time Compilation Streaming** via Socket.IO
+- **Transparent File-Based Testing System** 
+- **Advanced Features**: Cross-module dependencies, complex header resolution
+- **Load Testing Support** for concurrent compilation requests
+- **Production-Ready Container** with port 3090
 
 ### Components inside the Docker container
 - [Kuksa Databroker](https://github.com/eclipse-kuksa/kuksa-databroker/tree/0.4.4) - `0.4.4`

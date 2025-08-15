@@ -70,7 +70,7 @@ socket.on('connect', async () => {
     console.log('🔌 Connected to SDV Runtime');
     
     // Load communication test files
-    const testFiles = await loadTestFiles('./tests/communication');
+    const testFiles = await loadTestFiles('../test-data/tests/communication');
     
     if (!testFiles) {
         console.log('❌ Could not load test files');

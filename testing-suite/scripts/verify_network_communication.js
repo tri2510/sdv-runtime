@@ -77,7 +77,7 @@ socket.on('connect', async () => {
     await createTestServer();
     
     // Load network test files
-    const testFiles = await loadTestFiles('./tests/network');
+    const testFiles = await loadTestFiles('../test-data/tests/network');
     
     if (!testFiles) {
         console.log('❌ Could not load test files');

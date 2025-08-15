@@ -43,7 +43,7 @@ class ProductionLoadTester {
     
     async createTestProject(clientId) {
         // Load base test files and modify for load testing
-        const baseFiles = await loadTestFiles('./tests/simple');
+        const baseFiles = await loadTestFiles('../test-data/tests/simple');
         if (!baseFiles) {
             throw new Error('Could not load base test files');
         }
@@ -58,23 +58,6 @@ class ProductionLoadTester {
         }
         
         return modifiedFiles;
-    
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    
-    std::cout << "Client ${clientId} workload completed in " << duration.count() << "ms" << std::endl;
-    std::cout << "Production SDV Runtime compilation successful for client ${clientId}!" << std::endl;
-    
-    return 0;
-}`,
-            "client_config.h": `#ifndef CLIENT_CONFIG_H
-#define CLIENT_CONFIG_H
-
-#define CLIENT_ID ${clientId}
-#define CLIENT_WORKLOAD 50000
-#define PRODUCTION_SDV_VERSION "2.0.0"
-#define LOAD_TEST_ENABLED true
-
     }
     
     runLoadTest(numClients = 3, staggerDelay = 800) {

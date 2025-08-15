@@ -48,7 +48,7 @@ socket.on('connect', async () => {
     console.log('🔌 Connected for advanced feature testing');
     
     // Load advanced multi-file test files
-    const testFiles = await loadTestFiles('./tests/multifile');
+    const testFiles = await loadTestFiles('../test-data/tests/multifile');
     
     if (!testFiles) {
         console.log('❌ Could not load test files');

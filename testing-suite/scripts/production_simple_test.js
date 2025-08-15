@@ -2,8 +2,8 @@ const io = require('socket.io-client');
 const fs = require('fs').promises;
 const path = require('path');
 
-console.log('🐳 Production SDV Runtime: Complex Multi-File Test');
-console.log('=================================================\n');
+console.log('🐳 Production SDV Runtime: Simple C++ Compilation Test');
+console.log('====================================================\n');
 
 const socket = io('http://localhost:3090');
 
@@ -37,17 +37,14 @@ async function loadTestFiles(testDir) {
     }
 }
 
-// Use multifile test directory for complex testing
-// Complex project definition removed - now uses ./tests/multifile/ directory
-
-let phases = [];
+let totalMessages = 0;
 let startTime = Date.now();
 
 socket.on('connect', async () => {
-    console.log('🔌 Connected to Production SDV Runtime');
+    console.log('🔌 Connected to Production SDV Runtime container');
     
-    // Load complex multi-file test files
-    const testFiles = await loadTestFiles('./tests/multifile');
+    // Load simple test files
+    const testFiles = await loadTestFiles('../test-data/tests/simple');
     
     if (!testFiles) {
         console.log('❌ Could not load test files');
@@ -55,38 +52,47 @@ socket.on('connect', async () => {
         return;
     }
     
-    console.log(`📤 Uploading complex multi-file project with ${Object.keys(testFiles).length} files...\n`);
+    console.log(`📤 Sending simple test project with ${Object.keys(testFiles).length} files to production container...\n`);
     
     socket.emit('compile_cpp', {
         files: testFiles,
-        app_name: "complex_sdv_test",
-        run: true
+        app_name: "production_simple_test",
+        run: true  // Execute in container
     });
 });
 
 socket.on('compile_cpp_reply', (data) => {
+    totalMessages++;
     const elapsed = Date.now() - startTime;
-    phases.push(data.status);
     
+    // Highlight container-specific messages
     if (data.status === 'run-stdout') {
-        console.log(`🚀 [${elapsed}ms] ${data.result.trim()}`);
+        console.log(`🚀 [${elapsed}ms] Production Output: ${data.result.trim()}`);
     } else if (data.status === 'file-written') {
-        console.log(`📝 [${elapsed}ms] ${data.result.trim()}`);
+        console.log(`📝 [${elapsed}ms] Written: ${data.result.trim()}`);
     } else if (data.status.includes('build')) {
-        console.log(`🔨 [${elapsed}ms] ${data.result.trim()}`);
+        console.log(`🔨 [${elapsed}ms] Build: ${data.result.trim()}`);
+    } else {
+        console.log(`📋 [${elapsed}ms] ${data.status}: ${data.result.trim()}`);
     }
     
     if (data.isDone) {
-        console.log(`\n🎯 Complex Test Result: ${data.code === 0 ? '✅ SUCCESS' : '❌ FAILED'}`);
+        console.log(`\n🎯 Production SDV Test Result: ${data.code === 0 ? '✅ SUCCESS' : '❌ FAILED'}`);
         console.log(`⏱️  Total Time: ${elapsed}ms`);
-        console.log(`📊 Compilation Phases: ${phases.length}`);
-        
-        console.log('\n🏆 Features Verified:');
-        console.log('  ✅ Multi-file C++ compilation');
-        console.log('  ✅ Dynamic header resolution');
-        console.log('  ✅ CMake build system');
-        console.log('  ✅ Real-time progress streaming');
+        console.log(`📊 Messages: ${totalMessages}`);
+        console.log(`🐳 Production SDV Runtime: Execution completed`);
         
         socket.disconnect();
     }
 });
+
+socket.on('connect_error', (error) => {
+    console.error('❌ Production SDV container connection failed:', error.message);
+});
+
+socket.on('disconnect', (reason) => {
+    console.log(`🔌 Disconnected from Production SDV container: ${reason}`);
+    process.exit(0);
+});
+
+console.log('🚀 Starting Production SDV Runtime compilation test...');
