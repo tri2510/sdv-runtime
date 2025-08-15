@@ -65,6 +65,24 @@ echo "-------------"
 cat ../test-data/tests/network/main.cpp
 
 echo ""
+echo "📄 FCW System Test Files:"
+echo "------------------------"
+echo "📂 test-data/tests/fcw-system/"
+ls -la ../test-data/tests/fcw-system/
+echo ""
+echo "📄 main.cpp:"
+echo "-------------"
+cat ../test-data/tests/fcw-system/main.cpp
+echo ""
+echo "📄 fcw_types.h:"
+echo "---------------"
+cat ../test-data/tests/fcw-system/fcw_types.h
+echo ""
+echo "📄 collision_detector.h:"
+echo "------------------------"
+cat ../test-data/tests/fcw-system/collision_detector.h
+
+echo ""
 echo "🎯 INSPECTION COMPLETED"
 echo "======================="
 echo "✅ All test files are now transparent and inspectable"

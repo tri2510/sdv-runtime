@@ -89,7 +89,10 @@ node run_file_based_tests.js             # Complete test suite
 - **verify_network_communication.js**: Network programming (expected to fail due to container isolation)
 - **verify_direct_execution.js**: Direct executable testing
 
-### 5. **Comprehensive Testing**
+### 5. **Automotive System Tests**
+- **test_fcw_system.js**: Forward Collision Warning system compilation (inspired by FCW Showcase)
+
+### 6. **Comprehensive Testing**
 - **run_file_based_tests.js**: Complete test suite execution
 
 ---
@@ -113,6 +116,11 @@ node run_file_based_tests.js             # Complete test suite
 
 ### Network Tests (`test-data/tests/network/`)
 - `main.cpp`: Socket programming examples (expected to fail in container)
+
+### FCW System Tests (`test-data/tests/fcw-system/`)
+- `main.cpp`: Forward Collision Warning system with TTC calculations
+- `fcw_types.h`: Vehicle state management and FCW engine classes
+- `collision_detector.h`: Advanced collision detection algorithms and physics
 
 ---
 
