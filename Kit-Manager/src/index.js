@@ -302,8 +302,61 @@ io.on('connection', (socket) => {
     })
 
     // ============ C++ COMPILATION SERVICE ============
+    
+    // Helper function to convert tree structure to flat format
+    function treeToFlat(items, basePath = '') {
+        let files = {};
+        
+        function traverse(items, currentPath) {
+            if (!items) return;
+            
+            items.forEach(item => {
+                if (item.type === 'file' && item.content !== undefined) {
+                    const filePath = currentPath ? `${currentPath}/${item.name}` : item.name;
+                    files[filePath] = item.content;
+                } else if (item.type === 'folder' && item.items) {
+                    const newPath = currentPath ? `${currentPath}/${item.name}` : item.name;
+                    traverse(item.items, newPath);
+                }
+            });
+        }
+        
+        // Handle different input formats
+        if (Array.isArray(items)) {
+            // If it's an array, process each item
+            items.forEach(item => {
+                if (item.type === 'folder' && item.items) {
+                    // Skip the root folder name if it exists (like "Editor")
+                    traverse(item.items, '');
+                } else if (item.type === 'file') {
+                    files[item.name] = item.content;
+                }
+            });
+        } else if (items && typeof items === 'object') {
+            // If it's a single object
+            if (items.type === 'folder' && items.items) {
+                traverse(items.items, '');
+            } else if (items.type === 'file') {
+                files[items.name] = items.content;
+            }
+        }
+        
+        return files;
+    }
+    
     socket.on('compile_cpp', async (data) => {
-        if(!data["files"] || !data["app_name"]) {
+        // Convert tree structure to flat if needed
+        let files = data["files"];
+        
+        // Check if files is in tree structure format
+        if (Array.isArray(files) || (files && typeof files === 'object' && files.type)) {
+            console.log("Detected tree structure format, converting to flat...");
+            files = treeToFlat(files);
+            console.log(`Converted ${Object.keys(files).length} files from tree structure`);
+        }
+        
+        // Validate converted or original files
+        if(!files || Object.keys(files).length === 0 || !data["app_name"]) {
             socket.emit('compile_cpp_reply', {
                 "status": "err: invalid",
                 "result": "Invalid request, missing files or app_name\r\n",
@@ -358,7 +411,7 @@ io.on('connection', (socket) => {
             }
             await fs.promises.mkdir(`${app_dir}/app/src`, { recursive: true });
 
-            for (const [filename, content] of Object.entries(data.files)) {
+            for (const [filename, content] of Object.entries(files)) {
                 const filePath = path.join(`${app_dir}/app/src`, filename);
                 const fileDir = path.dirname(filePath);
                 await fs.promises.mkdir(fileDir, { recursive: true });
