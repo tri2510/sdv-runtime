@@ -27,35 +27,58 @@ test/syncer-cpp-tests/
 
 ## Running Tests
 
-### Prerequisites
+### Method 1: Mock Kit Server (Recommended)
+
+This method properly tests the production architecture by simulating the external kit server:
+
 ```bash
-# Ensure SDV runtime container is running
+# Install dependencies
+npm install socket.io socket.io-client
+
+# Run the mock kit server test
+cd test/syncer-cpp-tests
+node mock-server-test.js
+```
+
+**How it works:**
+1. Starts a mock kit server on port 3091
+2. Launches SDV runtime container configured to connect to the mock server
+3. syncer.py connects to mock server instead of kit.digitalauto.tech
+4. Sends C++ compilation commands through the mock server
+5. Receives real-time compilation status back from syncer.py
+
+### Method 2: Direct Function Testing
+
+For quick validation during development:
+
+```bash
+# Start regular SDV runtime container
 docker run -d --name sdv-runtime-test --user root \
   -p 3090:3090 -p 55555:55555 \
   -v "$(pwd)/output:/home/dev/data/output:rw" \
   sdv-runtime-production:latest
 
-# Wait for services to start
-sleep 20
+# Copy and run direct test script inside container
+docker cp test/syncer-cpp-tests/utils/direct-test-in-container.py sdv-runtime-test:/tmp/
+docker exec sdv-runtime-test python3 /tmp/direct-test-in-container.py
+
+# Cleanup
+docker stop sdv-runtime-test && docker rm sdv-runtime-test
 ```
 
-### Individual Tests
-```bash
-cd test/syncer-cpp-tests/01-basic-hello && node test.js
-cd test/syncer-cpp-tests/02-multi-file && node test.js
-```
+### Integration Test
 
-### All Tests
 ```bash
-node test/syncer-cpp-tests/run-all-tests.js
+node test/syncer-cpp-tests/integration-test.js
 ```
 
 ## Key Differences from Direct Kit-Manager Tests
 
-- **Port**: Connects to syncer.py on port 55555 (not Kit-Manager on 3090)
+- **Architecture**: Mock Kit Server → syncer.py → Kit-Manager (not direct to Kit-Manager)
 - **Command**: Uses `messageToKit` event with `compile_cpp_app` command
 - **Response**: Receives `messageToKit-kitReply` events with compilation status
-- **Data Format**: Same tree structure, but wrapped in `messageToKit` protocol
+- **Configuration**: syncer.py configured with mock server URL via environment variable
+- **Testing**: Validates production middleware layer instead of direct compilation service
 
 ## Test Data Format
 
