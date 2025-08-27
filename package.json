@@ -3,5 +3,27 @@
     "@grpc/grpc-js": "^1.13.4",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1"
-  }
+  },
+  "name": "sdv-runtime-fork",
+  "version": "1.0.0",
+  "description": "Want to try out SDV (Software Defined Vehicles) without installing lots of things? The sdv-runtime Docker container has everything you need to run your QM apps. It's made for people who are new to SDV and want to learn and practice without a complicated setup. The `sdv-runtime` connects natively with [playground.digital.auto](https://playground.digital.auto) where you can ideation, coding and present your automotive feature.",
+  "main": "validate-enhanced-features.js",
+  "directories": {
+    "doc": "doc",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tri2510/sdv-runtime.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tri2510/sdv-runtime/issues"
+  },
+  "homepage": "https://github.com/tri2510/sdv-runtime#readme"
 }

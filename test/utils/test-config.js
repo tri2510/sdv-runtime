@@ -199,8 +199,16 @@ class TestRunner {
     }
 }
 
-// Export singleton instance
+// Configuration constants for tests
+const TEST_CONFIG = {
+    SOCKET_URL: 'http://localhost:3090',
+    PORT: 3090,
+    TIMEOUT: 60000
+};
+
+// Export singleton instance and configuration
 module.exports = {
+    ...TEST_CONFIG,
     runTest: (config) => {
         const runner = new TestRunner();
         runner.runTest(config);

@@ -15,6 +15,14 @@ const config = require('../configs');
 const convertPgCode = require('./convert_code');
 const cors = require('cors');
 const { spawn } = require('child_process');
+const {
+    createLibraryTemplate,
+    generateLibraryCMake,
+    generateEnhancedExecutableCMake,
+    installSessionPackages,
+    installConanPackages,
+    writeTreeStructureEnhanced
+} = require('./enhanced-compilation');
 
 const app = express();
 app.use(express.json());
@@ -592,9 +600,348 @@ target_link_libraries(\${TARGET_NAME}
         }
     })
 
+    // ============ ENHANCED C++ COMPILATION FEATURES ============
+    
+    // Library compilation support
+    socket.on('compile_cpp_library', async (data) => {
+        const { app_name, library_type, files, config = {} } = data;
+        
+        if (!app_name || !library_type || !files || !Array.isArray(files)) {
+            socket.emit('compile_cpp_library_reply', {
+                "status": "err: invalid",
+                "result": "Invalid request. Required: app_name, library_type (static|shared|header_only), files array\r\n",
+                "cmd": "compile_cpp_library",
+                "isDone": true,
+                "code": 1
+            });
+            return;
+        }
+
+        socket.emit("compile_cpp_library_reply", {
+            "status": "compile-start",
+            "result": `Starting ${library_type} library compilation...\r\n`,
+            "cmd": "compile_cpp_library",
+            "isDone": false,
+            "code": 0
+        });
+
+        let app_dir = `/home/dev/data/ws/${app_name}`;
+
+        try {
+            await createLibraryTemplate(app_dir, library_type);
+            await writeTreeStructureEnhanced(files, `${app_dir}/lib`, socket);
+            
+            // Generate library CMakeLists.txt
+            const cmakeContent = generateLibraryCMake(library_type, config);
+            await fs.promises.writeFile(`${app_dir}/lib/CMakeLists.txt`, cmakeContent, 'utf8');
+
+            // Build library
+            await fs.promises.mkdir(`${app_dir}/build`, { recursive: true });
+            const pConfigure = spawn('cmake', ['..'], { cwd: `${app_dir}/build` });
+
+            pConfigure.stdout.on('data', async (data) => {
+                await socket.emit("compile_cpp_library_reply", {
+                    "status": "configure-stdout",
+                    "cmd": "compile_cpp_library",
+                    "result": `${data}`,
+                    "isDone": false,
+                    "code": 0
+                });
+            });
+
+            pConfigure.stderr.on('data', async (data) => {
+                await socket.emit("compile_cpp_library_reply", {
+                    "status": "configure-stderr", 
+                    "cmd": "compile_cpp_library",
+                    "result": `${data}`,
+                    "isDone": false,
+                    "code": 0
+                });
+            });
+
+            pConfigure.on('close', async (code) => {
+                if (code !== 0) {
+                    await socket.emit("compile_cpp_library_reply", {
+                        "status": "configure-failed",
+                        "cmd": "compile_cpp_library",
+                        "result": `CMake configuration failed with code ${code}\r\n`,
+                        "isDone": true,
+                        "code": code
+                    });
+                    return;
+                }
+
+                const pBuild = spawn('make', [], { cwd: `${app_dir}/build` });
+
+                pBuild.stdout.on('data', async (data) => {
+                    await socket.emit("compile_cpp_library_reply", {
+                        "status": "build-stdout",
+                        "cmd": "compile_cpp_library",
+                        "result": `${data}`,
+                        "isDone": false,
+                        "code": 0
+                    });
+                });
+
+                pBuild.stderr.on('data', async (data) => {
+                    await socket.emit("compile_cpp_library_reply", {
+                        "status": "build-stderr",
+                        "cmd": "compile_cpp_library", 
+                        "result": `${data}`,
+                        "isDone": false,
+                        "code": 0
+                    });
+                });
+
+                pBuild.on('close', async (code) => {
+                    await socket.emit("compile_cpp_library_reply", {
+                        "status": "build-done",
+                        "cmd": "compile_cpp_library",
+                        "result": `${library_type} library build completed with code ${code}\r\n`,
+                        "isDone": true,
+                        "code": code
+                    });
+
+                    if (code === 0) {
+                        // Copy library artifacts to output
+                        try {
+                            const outputDir = `/home/dev/data/output/${app_name}`;
+                            await fs.promises.mkdir(outputDir, { recursive: true });
+                            
+                            // Find and copy built library files
+                            const buildFiles = await fs.promises.readdir(`${app_dir}/build/lib`);
+                            for (const file of buildFiles) {
+                                if (file.startsWith('lib') && (file.endsWith('.a') || file.endsWith('.so'))) {
+                                    await fs.promises.copyFile(
+                                        `${app_dir}/build/lib/${file}`,
+                                        `${outputDir}/${file}`
+                                    );
+                                }
+                            }
+                        } catch (err) {
+                            console.log("Error copying library artifacts:", err);
+                        }
+                    }
+                });
+            });
+
+        } catch (err) {
+            await socket.emit("compile_cpp_library_reply", {
+                "status": "err_build",
+                "result": err.toString(),
+                "cmd": "compile_cpp_library",
+                "isDone": true,
+                "code": 1
+            });
+        }
+    });
+
+    // Session package installation
+    socket.on('install_session_packages', async (data) => {
+        const { packages } = data;
+        
+        if (!packages || !Array.isArray(packages) || packages.length === 0) {
+            socket.emit('package_install_reply', {
+                status: 'failed',
+                result: 'Invalid request: packages array required\r\n',
+                isDone: true
+            });
+            return;
+        }
+
+        socket.emit('package_install_reply', {
+            status: 'installing',
+            result: `Installing session packages: ${packages.join(', ')}\r\n`,
+            isDone: false
+        });
+
+        try {
+            await installSessionPackages(packages, socket);
+        } catch (err) {
+            socket.emit('package_install_reply', {
+                status: 'failed',
+                result: `Package installation failed: ${err.message}\r\n`,
+                isDone: true
+            });
+        }
+    });
+
+    // Conan package installation  
+    socket.on('install_conan_packages', async (data) => {
+        const { packages, profile = 'default' } = data;
+        
+        if (!packages || !Array.isArray(packages) || packages.length === 0) {
+            socket.emit('conan_install_reply', {
+                status: 'failed',
+                result: 'Invalid request: packages array required\r\n',
+                isDone: true
+            });
+            return;
+        }
+
+        const app_name = "conan_" + socket.id;
+        const app_dir = `/home/dev/data/ws/${app_name}`;
+
+        try {
+            await fs.promises.mkdir(app_dir, { recursive: true });
+            await installConanPackages(packages, app_dir, socket);
+        } catch (err) {
+            socket.emit('conan_install_reply', {
+                status: 'failed',
+                result: `Conan installation failed: ${err.message}\r\n`,
+                isDone: true
+            });
+        }
+    });
+
+    // Enhanced compilation with advanced configuration
+    socket.on('compile_cpp_advanced', async (data) => {
+        const { 
+            app_name, 
+            target_type = 'executable', 
+            dependencies = {}, 
+            config = {}, 
+            files 
+        } = data;
+
+        if (!app_name || !files || !Array.isArray(files)) {
+            socket.emit('compile_cpp_advanced_reply', {
+                status: 'err: invalid',
+                result: 'Invalid request: app_name and files array required\r\n',
+                isDone: true,
+                code: 1
+            });
+            return;
+        }
+
+        socket.emit('compile_cpp_advanced_reply', {
+            status: 'compile-start',
+            result: `Starting advanced ${target_type} compilation...\r\n`,
+            isDone: false,
+            code: 0
+        });
+
+        const app_dir = `/home/dev/data/ws/${app_name}`;
+
+        try {
+            // Install system packages if specified
+            if (dependencies.system_packages && dependencies.system_packages.length > 0) {
+                socket.emit('compile_cpp_advanced_reply', {
+                    status: 'installing-packages',
+                    result: `Installing system packages: ${dependencies.system_packages.join(', ')}\r\n`,
+                    isDone: false,
+                    code: 0
+                });
+                await installSessionPackages(dependencies.system_packages, null);
+            }
+
+            // Setup project structure
+            if (target_type === 'executable') {
+                await createMinimalSdkTemplate(app_dir);
+                await writeTreeStructureEnhanced(files, `${app_dir}/app/src`, socket);
+
+                // Generate enhanced CMakeLists.txt
+                const enhancedConfig = {
+                    ...config,
+                    system_packages: dependencies.system_packages || [],
+                    conan_packages: dependencies.conan_packages || []
+                };
+                const cmakeContent = generateEnhancedExecutableCMake(enhancedConfig);
+                await fs.promises.writeFile(`${app_dir}/app/src/CMakeLists.txt`, cmakeContent, 'utf8');
+            } else {
+                await createLibraryTemplate(app_dir, target_type);
+                await writeTreeStructureEnhanced(files, `${app_dir}/lib`, socket);
+                const cmakeContent = generateLibraryCMake(target_type, config);
+                await fs.promises.writeFile(`${app_dir}/lib/CMakeLists.txt`, cmakeContent, 'utf8');
+            }
+
+            // Install Conan packages if specified
+            if (dependencies.conan_packages && dependencies.conan_packages.length > 0) {
+                socket.emit('compile_cpp_advanced_reply', {
+                    status: 'installing-conan',
+                    result: `Installing Conan packages: ${dependencies.conan_packages.join(', ')}\r\n`,
+                    isDone: false,
+                    code: 0
+                });
+                await installConanPackages(dependencies.conan_packages, app_dir, null);
+            }
+
+            // Build project
+            await fs.promises.mkdir(`${app_dir}/build`, { recursive: true });
+            const pConfigure = spawn('cmake', ['..'], { cwd: `${app_dir}/build` });
+
+            pConfigure.stdout.on('data', async (data) => {
+                await socket.emit('compile_cpp_advanced_reply', {
+                    status: 'configure-stdout',
+                    result: `${data}`,
+                    isDone: false,
+                    code: 0
+                });
+            });
+
+            pConfigure.stderr.on('data', async (data) => {
+                await socket.emit('compile_cpp_advanced_reply', {
+                    status: 'configure-stderr',
+                    result: `${data}`,
+                    isDone: false,
+                    code: 0
+                });
+            });
+
+            pConfigure.on('close', async (code) => {
+                if (code !== 0) {
+                    await socket.emit('compile_cpp_advanced_reply', {
+                        status: 'configure-failed',
+                        result: `CMake configuration failed with code ${code}\r\n`,
+                        isDone: true,
+                        code: code
+                    });
+                    return;
+                }
+
+                const pBuild = spawn('make', [], { cwd: `${app_dir}/build` });
+
+                pBuild.stdout.on('data', async (data) => {
+                    await socket.emit('compile_cpp_advanced_reply', {
+                        status: 'build-stdout',
+                        result: `${data}`,
+                        isDone: false,
+                        code: 0
+                    });
+                });
+
+                pBuild.stderr.on('data', async (data) => {
+                    await socket.emit('compile_cpp_advanced_reply', {
+                        status: 'build-stderr',
+                        result: `${data}`,
+                        isDone: false,
+                        code: 0
+                    });
+                });
+
+                pBuild.on('close', async (code) => {
+                    await socket.emit('compile_cpp_advanced_reply', {
+                        status: 'build-done',
+                        result: `Advanced compilation completed with code ${code}\r\n`,
+                        isDone: true,
+                        code: code
+                    });
+                });
+            });
+
+        } catch (err) {
+            await socket.emit('compile_cpp_advanced_reply', {
+                status: 'err_build',
+                result: err.toString(),
+                isDone: true,
+                code: 1
+            });
+        }
+    });
+
 });
 
 server.listen(config.port, () => {
     console.log(`SDV Runtime Kit Manager with C++ Compilation listening on port ${config.port}`);
-    console.log(`Available compilation endpoints: compile_cpp`);
+    console.log(`Available compilation endpoints: compile_cpp, compile_cpp_library, compile_cpp_advanced, install_session_packages, install_conan_packages`);
 });
