@@ -16,7 +16,7 @@ from project_utils import ProjectUtils
 import cpp_debugger_util
 
 DEFAULT_KIT_SERVER = 'https://kit.digitalauto.tech'
-DEFAULT_RUNTIME_NAME = 'CPP'
+DEFAULT_RUNTIME_NAME = 'CPP_TRI'
 
 TIME_TO_KEEP_SUBSCRIBER_ALIVE = 60
 TIME_TO_KEEP_RUNNER_ALIVE = 3*60

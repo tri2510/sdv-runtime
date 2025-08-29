@@ -95,12 +95,17 @@ class ProjectUtils:
         code_data_str = payload['data']['code']
         watch_vars = payload['data'].get("watch_vars", "")
 
-        # Ensure the wrapper header is available in the app directory.
+        # Create include directory for headers
+        include_dir = self.base_path / 'include'
+        include_dir.mkdir(exist_ok=True)
+        logger.info(f"Ensured include directory exists: {include_dir}")
+
+        # Ensure the wrapper header is available in the include directory.
         wrapper_src = self.base_path.parent / 'shm_wrapper.h'
-        wrapper_dest = self.base_path / 'shm_wrapper.h'
+        wrapper_dest = include_dir / 'shm_wrapper.h'
         if wrapper_src.exists():
             shutil.copy(wrapper_src, wrapper_dest)
-            logger.info(f"Copied shm_wrapper.h to {self.base_path}")
+            logger.info(f"Copied shm_wrapper.h to {include_dir}")
         else:
             logger.warning(f"shm_wrapper.h not found at {wrapper_src}")
 
@@ -127,7 +132,7 @@ class ProjectUtils:
 
     def empty_app_directory(self) -> bool:
         """
-        Remove all contents of the app directory.
+        Remove all contents of the app directory for fresh deployment.
 
         Returns:
             True if successful, False otherwise.
@@ -137,12 +142,15 @@ class ProjectUtils:
                 logger.info("App directory does not exist; nothing to empty.")
                 return True
 
-            logger.info(f"Emptying app directory: {self.base_path}")
+            logger.info(f"Emptying app directory for fresh deployment: {self.base_path}")
             for item in self.base_path.iterdir():
                 if item.is_dir():
                     shutil.rmtree(item)
+                    logger.info(f"Removed directory: {item}")
                 else:
                     item.unlink()
+                    logger.info(f"Removed file: {item}")
+                    
             logger.info("App directory emptied successfully.")
             return True
         except Exception as e:
@@ -199,15 +207,34 @@ class ProjectUtils:
         main_body_start = main_func_match.end()
 
         # Inject initialization and cleanup calls inside main.
+        # Only inject WATCH_VAR for variables that actually exist in the code
         watch_macros = []
         for var in watch_vars:
-            # Simple type inference for demonstration purposes.
-            var_type = "double" if any(t in var.lower() for t in ["temp", "value"]) else "int"
-            watch_macros.append(f'    WATCH_VAR({var}, "{var_type}");')
+            # Check if the variable is actually declared in the code
+            if re.search(rf'\b{re.escape(var)}\b', cpp_code):
+                # Simple type inference for demonstration purposes.
+                var_type = "double" if any(t in var.lower() for t in ["temp", "value"]) else "int"
+                watch_macros.append(f'    WATCH_VAR({var}, "{var_type}");')
+                logger.info(f"Adding WATCH_VAR for existing variable: {var}")
+            else:
+                logger.warning(f"Skipping WATCH_VAR for non-existent variable: {var}")
 
-        init_code = f"\n    INIT_SHM();\n" + "\n".join(watch_macros) + "\n"
-        cpp_code = cpp_code[:main_body_start] + init_code + cpp_code[main_body_start:]
-        cpp_code = re.sub(r'(return\s+\d+;)', r'    CLEANUP_SHM();\n    \1', cpp_code)
+        # Check if INIT_SHM() is already present to avoid duplicate injection
+        if 'INIT_SHM();' not in cpp_code:
+            init_code = f"\n    INIT_SHM();\n" + "\n".join(watch_macros) + "\n"
+            cpp_code = cpp_code[:main_body_start] + init_code + cpp_code[main_body_start:]
+            logger.info("Injected INIT_SHM() and WATCH_VAR macros")
+        else:
+            logger.info("INIT_SHM() already present, skipping injection")
+            # Just add the watch macros if INIT_SHM is already there
+            if watch_macros:
+                watch_code = "\n" + "\n".join(watch_macros) + "\n"
+                cpp_code = cpp_code[:main_body_start] + watch_code + cpp_code[main_body_start:]
+        
+        # Add CLEANUP_SHM() before return statements if not already present
+        if 'CLEANUP_SHM();' not in cpp_code:
+            cpp_code = re.sub(r'(return\s+\d+;)', r'    CLEANUP_SHM();\n    \1', cpp_code)
+            logger.info("Injected CLEANUP_SHM() before return statements")
 
         return cpp_code
 

@@ -14,6 +14,7 @@
 #include <thread>
 #include <vector>
 #include <csignal>
+#include <chrono>
 
 // Shared memory constants
 const char* SHM_NAME = "/my_shm";
@@ -50,8 +51,6 @@ void handle_set_request(const std::string& var_name, const std::string& new_valu
             *static_cast<std::atomic<float>*>(var_ptr) = std::stof(new_value_str);
         } else if (type == "bool") {
             *static_cast<std::atomic<bool>*>(var_ptr) = (new_value_str == "1" || new_value_str == "true");
-        } else if (type == "string") {
-            // Not implemented for atomic strings. Requires fixed-size buffers.
         }
     } catch (const std::exception& e) {
         // Handle conversion error
@@ -110,22 +109,46 @@ void shm_loop() {
 }
 
 void init() {
-    int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
-    if (shm_fd == -1) {
-        perror("shm_open");
-        return;
-    }
+    std::cout << "Initializing shared memory connection..." << std::endl;
+    
+    // Retry logic for shared memory connection
+    const int max_retries = 10;
+    const int retry_delay_ms = 500;
+    
+    for (int attempt = 1; attempt <= max_retries; ++attempt) {
+        std::cout << "Attempting to connect to shared memory (attempt " << attempt << "/" << max_retries << ")" << std::endl;
+        
+        int shm_fd = shm_open(SHM_NAME, O_RDWR, 0666);
+        if (shm_fd == -1) {
+            if (attempt < max_retries) {
+                std::cout << "Shared memory not ready, waiting " << retry_delay_ms << "ms..." << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms));
+                continue;
+            } else {
+                std::cout << "Failed to open shared memory after " << max_retries << " attempts. Running without shared memory monitoring." << std::endl;
+                return;
+            }
+        }
 
-    shm_ptr = mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if (shm_ptr == MAP_FAILED) {
-        perror("mmap");
+        shm_ptr = mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+        if (shm_ptr == MAP_FAILED) {
+            perror("mmap");
+            close(shm_fd);
+            if (attempt < max_retries) {
+                std::cout << "Memory mapping failed, retrying..." << std::endl;
+                std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms));
+                continue;
+            } else {
+                std::cout << "Failed to map shared memory after " << max_retries << " attempts. Running without shared memory monitoring." << std::endl;
+                return;
+            }
+        }
+        
         close(shm_fd);
+        std::cout << "Successfully connected to shared memory!" << std::endl;
+        shm_thread = std::thread(shm_loop);
         return;
     }
-    close(shm_fd);
-
-    std::cout << "C++ app connected to shared memory." << std::endl;
-    shm_thread = std::thread(shm_loop);
 }
 
 void cleanup() {
@@ -146,7 +169,7 @@ void signal_handler(int signum) {
 
 // Macro to add a variable to the watch map
 #define WATCH_VAR(var, type_str) \
-    shm_wrapper::var_map[#var] = {&var, type_str};
+    shm_wrapper::var_map[#var] = std::make_pair(&var, type_str);
 
 #define INIT_SHM() \
     signal(SIGINT, shm_wrapper::signal_handler); \
