@@ -83,6 +83,10 @@ async def get_global_variables(watch_vars, pid=None):
     if shm is None:
         return {"error": "Shared memory not initialized"}, "Shared memory not initialized"
     
+    # If no watch_vars provided, use common variable names for auto-detection
+    if not watch_vars or not watch_vars.strip():
+        watch_vars = "counter,test,ego_speed,collision_risk,current_lane,warning_active,brake_pressure,vehicle_speed,target_speed,distance_traveled,acceleration,engine_rpm,throttle_cmd,brake_cmd,pid_error,pid_output,control_mode,scenario_mode,enable_logging"
+    
     # Write the variable names we are interested in to shared memory
     shm_util.write_to_shm(shm, watch_vars)
     
@@ -124,7 +128,7 @@ async def periodic_global_var_report(interval, sio, client_id, watch_vars, pid, 
     first = True
     while True:
         if first:
-            await asyncio.sleep(1)  # Wait 1 second before first GDB run
+            await asyncio.sleep(1)  # Wait 1 second before first shared memory check
             first = False
         else:
             await asyncio.sleep(interval)

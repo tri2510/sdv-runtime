@@ -206,36 +206,8 @@ class ProjectUtils:
         # Find the opening brace of main function and inject initialization code
         main_body_start = main_func_match.end()
 
-        # Inject initialization and cleanup calls inside main.
-        # Only inject WATCH_VAR for variables that actually exist in the code
-        watch_macros = []
-        for var in watch_vars:
-            # Check if the variable is actually declared in the code
-            if re.search(rf'\b{re.escape(var)}\b', cpp_code):
-                # Simple type inference for demonstration purposes.
-                var_type = "double" if any(t in var.lower() for t in ["temp", "value"]) else "int"
-                watch_macros.append(f'    WATCH_VAR({var}, "{var_type}");')
-                logger.info(f"Adding WATCH_VAR for existing variable: {var}")
-            else:
-                logger.warning(f"Skipping WATCH_VAR for non-existent variable: {var}")
-
-        # Check if INIT_SHM() is already present to avoid duplicate injection
-        if 'INIT_SHM();' not in cpp_code:
-            init_code = f"\n    INIT_SHM();\n" + "\n".join(watch_macros) + "\n"
-            cpp_code = cpp_code[:main_body_start] + init_code + cpp_code[main_body_start:]
-            logger.info("Injected INIT_SHM() and WATCH_VAR macros")
-        else:
-            logger.info("INIT_SHM() already present, skipping injection")
-            # Just add the watch macros if INIT_SHM is already there
-            if watch_macros:
-                watch_code = "\n" + "\n".join(watch_macros) + "\n"
-                cpp_code = cpp_code[:main_body_start] + watch_code + cpp_code[main_body_start:]
-        
-        # Add CLEANUP_SHM() before return statements if not already present
-        if 'CLEANUP_SHM();' not in cpp_code:
-            cpp_code = re.sub(r'(return\s+\d+;)', r'    CLEANUP_SHM();\n    \1', cpp_code)
-            logger.info("Injected CLEANUP_SHM() before return statements")
-
+        # C++ projects are now completely standalone - Python syncer handles monitoring automatically
+        logger.info("C++ project is standalone - Python syncer will automatically monitor variables")
         return cpp_code
 
 

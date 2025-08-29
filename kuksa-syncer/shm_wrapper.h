@@ -144,9 +144,10 @@ void signal_handler(int signum) {
    exit(signum);
 }
 
-// Macro to add a variable to the watch map
+// WATCH_VAR macro is now deprecated - Python syncer handles variable detection automatically
+// This macro is kept as a no-op for compatibility but has no effect
 #define WATCH_VAR(var, type_str) \
-    shm_wrapper::var_map[#var] = {&var, type_str};
+    // No-op: Variables are automatically detected by Python syncer
 
 #define INIT_SHM() \
     signal(SIGINT, shm_wrapper::signal_handler); \

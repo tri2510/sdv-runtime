@@ -1,0 +1,84 @@
+{
+  "name": "City Driving Cycle",
+  "description": "Urban driving scenario with stops, starts, and varying speeds",
+  "duration": 50.0,
+  "scenario_id": 1,
+  
+  "matlab_equivalent": {
+    "test_harness": "city_driving_test.slx",
+    "signal_builder": "Urban cycle speed profile",
+    "test_sequence": "City driving test sequence block"
+  },
+  
+  "speed_profile": {
+    "description": "Speed setpoints over time (equivalent to MATLAB Signal Builder)",
+    "waypoints": [
+      {"time": 0.0,  "speed_kmh": 0,   "description": "Start from stop"},
+      {"time": 2.0,  "speed_kmh": 20,  "description": "Accelerate from traffic light"},
+      {"time": 8.0,  "speed_kmh": 30,  "description": "City speed limit"},
+      {"time": 12.0, "speed_kmh": 30,  "description": "Cruise in traffic"},
+      {"time": 15.0, "speed_kmh": 45,  "description": "Main arterial road"},
+      {"time": 22.0, "speed_kmh": 50,  "description": "Higher speed zone"},
+      {"time": 28.0, "speed_kmh": 25,  "description": "School zone"},
+      {"time": 32.0, "speed_kmh": 0,   "description": "Red light stop"},
+      {"time": 38.0, "speed_kmh": 35,  "description": "Resume from stop"},
+      {"time": 45.0, "speed_kmh": 40,  "description": "Approach destination"},
+      {"time": 50.0, "speed_kmh": 0,   "description": "Final stop"}
+    ]
+  },
+  
+  "expected_performance": {
+    "description": "Expected vehicle behavior and performance metrics",
+    "max_acceleration": 3.0,
+    "max_deceleration": -8.0,
+    "settling_time": 3.0,
+    "overshoot_limit": 5.0,
+    "fuel_consumption_target": 8.5,
+    "units": {
+      "acceleration": "m/s^2",
+      "settling_time": "s", 
+      "overshoot": "%",
+      "fuel_consumption": "L/100km"
+    }
+  },
+  
+  "validation_criteria": {
+    "description": "Pass/fail criteria for automated testing",
+    "speed_tracking_error": {
+      "max_steady_state_error": 2.0,
+      "unit": "km/h",
+      "description": "Maximum acceptable steady-state speed error"
+    },
+    "comfort_metrics": {
+      "max_jerk": 3.0,
+      "unit": "m/s^3", 
+      "description": "Maximum jerk for passenger comfort"
+    },
+    "safety_constraints": {
+      "min_following_distance": 3.0,
+      "unit": "s",
+      "description": "Minimum time headway at any speed"
+    }
+  },
+  
+  "matlab_analysis_script": {
+    "description": "MATLAB post-processing commands for results analysis",
+    "commands": [
+      "data = readtable('matlab_vehicle_simulation.csv');",
+      "figure; plot(data.timestamp, data.vehicle_speed*3.6, 'b-', data.timestamp, data.target_speed*3.6, 'r--');",
+      "xlabel('Time (s)'); ylabel('Speed (km/h)'); legend('Actual', 'Target');",
+      "title('City Driving Cycle - Speed Tracking Performance');",
+      "",
+      "% Calculate performance metrics",
+      "speed_error = data.vehicle_speed - data.target_speed;",
+      "rms_error = sqrt(mean(speed_error.^2));",
+      "max_error = max(abs(speed_error));",
+      "fprintf('RMS Speed Error: %.2f m/s\\n', rms_error);",
+      "fprintf('Max Speed Error: %.2f m/s\\n', max_error);",
+      "",
+      "% Fuel consumption analysis", 
+      "avg_fuel = mean(data.fuel_consumption(data.fuel_consumption > 0));",
+      "fprintf('Average Fuel Consumption: %.2f L/100km\\n', avg_fuel);"
+    ]
+  }
+}
