@@ -32,7 +32,9 @@ async def compile_cpp():
     cpp_file_paths = [str(f) for f in cpp_files]
     
     # Linux compilation with real-time library for shared memory
-    cmd = ['g++', '-g', '-O0', '-o', str(BINARY_FILE)] + cpp_file_paths + ['-lrt']
+    # Add include directory for header files
+    include_dir = APP_DIR / 'include'
+    cmd = ['g++', '-g', '-O0', '-I', str(include_dir), '-o', str(BINARY_FILE)] + cpp_file_paths + ['-lrt']
     
     print(f"Compilation command: {' '.join(cmd)}", flush=True)
 
@@ -50,6 +52,10 @@ async def compile_cpp():
     shm = shm_util.create_shared_memory()
     if shm is None:
         return False, "Failed to create shared memory."
+    
+    # Give shared memory a moment to initialize properly
+    await asyncio.sleep(0.1)
+    print("Shared memory created and initialized.", flush=True)
         
     return True, 'Compiled successfully.'
 
@@ -57,6 +63,8 @@ async def run_binary():
     """Run the compiled binary in the background and return the process and its PID."""
     if not os.path.exists(BINARY_FILE):
         return None, None, 'Binary not found.'
+    
+    print("Starting C++ binary...", flush=True)
     proc = await asyncio.create_subprocess_exec(
         BINARY_FILE,
         cwd=APP_DIR,
@@ -64,8 +72,9 @@ async def run_binary():
         stderr=asyncio.subprocess.PIPE,
         bufsize=0  # Unbuffered output for real-time streaming
     )
-    await asyncio.sleep(0.2)  # Give process time to start
+    await asyncio.sleep(0.5)  # Give process time to start and connect to shared memory
     pid = proc.pid
+    print(f"C++ binary started with PID: {pid}", flush=True)
     return proc, pid, 'Started.'
 
 async def get_global_variables(watch_vars, pid=None):
@@ -73,6 +82,10 @@ async def get_global_variables(watch_vars, pid=None):
     global shm
     if shm is None:
         return {"error": "Shared memory not initialized"}, "Shared memory not initialized"
+    
+    # If no watch_vars provided, use common variable names for auto-detection
+    if not watch_vars or not watch_vars.strip():
+        watch_vars = "counter,test,ego_speed,collision_risk,current_lane,warning_active,brake_pressure,vehicle_speed,target_speed,distance_traveled,acceleration,engine_rpm,throttle_cmd,brake_cmd,pid_error,pid_output,control_mode,scenario_mode,enable_logging"
     
     # Write the variable names we are interested in to shared memory
     shm_util.write_to_shm(shm, watch_vars)
@@ -115,7 +128,7 @@ async def periodic_global_var_report(interval, sio, client_id, watch_vars, pid, 
     first = True
     while True:
         if first:
-            await asyncio.sleep(1)  # Wait 1 second before first GDB run
+            await asyncio.sleep(1)  # Wait 1 second before first shared memory check
             first = False
         else:
             await asyncio.sleep(interval)

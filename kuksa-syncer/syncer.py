@@ -16,7 +16,7 @@ from project_utils import ProjectUtils
 import cpp_debugger_util
 
 DEFAULT_KIT_SERVER = 'https://kit.digitalauto.tech'
-DEFAULT_RUNTIME_NAME = 'CPP'
+DEFAULT_RUNTIME_NAME = 'CPP_TRI'
 
 TIME_TO_KEEP_SUBSCRIBER_ALIVE = 60
 TIME_TO_KEEP_RUNNER_ALIVE = 3*60
@@ -287,12 +287,12 @@ async def messageToKit(data):
                     # Get watch_vars from data if present, else use default
                     watch_vars = data["data"].get("watch_vars", "")
                     print(f"Watch vars: {watch_vars}", flush=True)
-                    # Check if watch_vars is empty or only whitespace after trimming
-                    if watch_vars is not None and watch_vars.strip():
-                        # Start periodic monitoring of global variables
-                        asyncio.create_task(cpp_debugger_util.periodic_global_var_report(
-                            PERIODIC_GLOBAL_VAR_REPORT, sio, CLIENT_ID, watch_vars, pid, from_id
-                        ))
+                    
+                    # Always start periodic monitoring using shared memory
+                    print("Starting automatic variable monitoring using shared memory...", flush=True)
+                    asyncio.create_task(cpp_debugger_util.periodic_global_var_report(
+                        PERIODIC_GLOBAL_VAR_REPORT, sio, CLIENT_ID, watch_vars, pid, from_id
+                    ))
                     
                     # Start capturing and forwarding app output
                     asyncio.create_task(capture_app_output(proc, from_id))
