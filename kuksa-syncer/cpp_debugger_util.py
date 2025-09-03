@@ -32,7 +32,9 @@ async def compile_cpp():
     cpp_file_paths = [str(f) for f in cpp_files]
     
     # Linux compilation with real-time library for shared memory
-    cmd = ['g++', '-g', '-O0', '-o', str(BINARY_FILE)] + cpp_file_paths + ['-lrt']
+    # Add include directory for header files
+    include_dir = APP_DIR / 'include'
+    cmd = ['g++', '-g', '-O0', '-I', str(include_dir), '-o', str(BINARY_FILE)] + cpp_file_paths + ['-lrt']
     
     print(f"Compilation command: {' '.join(cmd)}", flush=True)
 

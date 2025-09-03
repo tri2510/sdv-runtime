@@ -64,17 +64,31 @@ class ProjectUtils:
                 # For C++ files, back up and consider for code injection.
                 if item_name.endswith(('.cpp', '.h')):
                     backup_file_path = item_path.with_suffix(item_path.suffix + '.origin')
-                    with open(backup_file_path, 'w', encoding='utf-8') as f:
-                        f.write(content)
-                    logger.info(f"Created backup: {backup_file_path}")
+                    try:
+                        # Clean content for backup as well
+                        backup_content = content.encode('utf-8', errors='ignore').decode('utf-8')
+                        with open(backup_file_path, 'w', encoding='utf-8') as f:
+                            f.write(backup_content)
+                        logger.info(f"Created backup: {backup_file_path}")
+                    except Exception as e:
+                        logger.warning(f"Backup creation failed for {item_name}: {e}")
                     
-                    # Inject code only if 'main' is in the filename, suggesting it's an entry point.
-                    if "main" in item_name.lower() and item_name.endswith('.cpp'):
-                        logger.info(f"Injecting SHM code into {item_name}")
-                        content = self.inject_shm_code(content, watch_vars_str)
+                    # Skip injection for memory monitoring approach - pure compilation only
+                    # Code injection disabled - using direct memory inspection instead
+                    logger.info(f"Skipping injection for {item_name} - using memory monitoring")
 
-                with open(item_path, 'w', encoding='utf-8') as f:
-                    f.write(content)
+                # Handle UTF-8 encoding issues by cleaning problematic characters
+                try:
+                    # Try to encode/decode to catch and fix problematic characters
+                    content = content.encode('utf-8', errors='ignore').decode('utf-8')
+                    with open(item_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                except UnicodeEncodeError as e:
+                    logger.warning(f"UTF-8 encoding issue in {item_name}: {e}")
+                    # Clean the content by removing problematic characters
+                    clean_content = ''.join(char for char in content if ord(char) < 65536 and ord(char) != 0xdfff)
+                    with open(item_path, 'w', encoding='utf-8') as f:
+                        f.write(clean_content)
                 logger.debug(f"Wrote file: {item_path} ({len(content)} bytes)")
             else:
                 logger.warning(f"Skipping unknown item type '{item_type}' for item '{item_name}'")
@@ -95,14 +109,8 @@ class ProjectUtils:
         code_data_str = payload['data']['code']
         watch_vars = payload['data'].get("watch_vars", "")
 
-        # Ensure the wrapper header is available in the app directory.
-        wrapper_src = self.base_path.parent / 'shm_wrapper.h'
-        wrapper_dest = self.base_path / 'shm_wrapper.h'
-        if wrapper_src.exists():
-            shutil.copy(wrapper_src, wrapper_dest)
-            logger.info(f"Copied shm_wrapper.h to {self.base_path}")
-        else:
-            logger.warning(f"shm_wrapper.h not found at {wrapper_src}")
+        # No need for shm_wrapper.h with memory monitoring approach
+        logger.info("Using memory monitoring - no header injection needed")
 
         try:
             project_items = json.loads(code_data_str)

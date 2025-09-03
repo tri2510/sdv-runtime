@@ -13,10 +13,10 @@ import time
 import os
 import json
 from project_utils import ProjectUtils
-import cpp_debugger_util
+import cpp_memory_debugger as cpp_debugger_util
 
 DEFAULT_KIT_SERVER = 'https://kit.digitalauto.tech'
-DEFAULT_RUNTIME_NAME = 'CPP'
+DEFAULT_RUNTIME_NAME = 'TriCPP'
 
 TIME_TO_KEEP_SUBSCRIBER_ALIVE = 60
 TIME_TO_KEEP_RUNNER_ALIVE = 3*60
@@ -259,45 +259,62 @@ async def messageToKit(data):
                     await send_reply(from_id, f"Failed to create project content: {str(e)}", is_error=True, retcode=1)
                 await send_reply(from_id, "Project content created successfully", is_done=False, retcode=0)
 
-                # Step 3: If C++ app, compile and periodically print out global variables
+                # Step 3: Compile C++ project (pure compilation, no injection)
                 compile_ok, compile_msg = await cpp_debugger_util.compile_cpp()
                 print(f"Compiling project...\r\n{compile_msg}", flush=True)
                 await send_reply(from_id, f"Compiling project...\r\n{compile_msg}\r\n", is_done=False, retcode=0)
                 if not compile_ok:
                     await send_reply(from_id, "Compilation failed", is_error=True, is_done=True, retcode=1)
                     return 0
-                print("Run app")
-                proc, pid, run_msg = await cpp_debugger_util.run_binary()
-                await send_reply(from_id, f"Running app...\r\n{run_msg}\r\n", is_done=False, retcode=0)
                 
-                if proc is not None and pid is not None:
-                    # Track this process for this client
+                print("Starting memory monitoring approach")
+                await send_reply(from_id, "Starting high-performance memory monitoring...\r\n", is_done=False, retcode=0)
+                
+                # Start memory monitoring (replaces traditional run_binary)
+                binary_path, pid, run_msg = await cpp_debugger_util.run_binary()
+                await send_reply(from_id, f"Binary ready: {run_msg}\r\n", is_done=False, retcode=0)
+                
+                if binary_path is not None:
+                    # Track memory monitoring for this client
                     if from_id not in cpp_processes:
                         cpp_processes[from_id] = []
                     
                     cpp_processes[from_id].append({
-                        "proc": proc,
-                        "pid": pid,
-                        "type": "cpp",
+                        "binary_path": binary_path,
+                        "type": "cpp_memory",
+                        "monitor_active": True,
                         "start_time": time.time()
                     })
                     
-                    print(f"Tracked C++ process PID {pid} for client {from_id}", flush=True)
+                    print(f"Prepared memory monitoring for binary {binary_path} for client {from_id}", flush=True)
                     
-                    # Get watch_vars from data if present, else use default
+                    # Debug: Print full data structure 
+                    print(f"Full data received: {data}", flush=True)
+                    
+                    # Get watch_vars from data if present
                     watch_vars = data["data"].get("watch_vars", "")
-                    print(f"Watch vars: {watch_vars}", flush=True)
-                    # Check if watch_vars is empty or only whitespace after trimming
-                    if watch_vars is not None and watch_vars.strip():
-                        # Start periodic monitoring of global variables
-                        asyncio.create_task(cpp_debugger_util.periodic_global_var_report(
-                            PERIODIC_GLOBAL_VAR_REPORT, sio, CLIENT_ID, watch_vars, pid, from_id
-                        ))
                     
-                    # Start capturing and forwarding app output
-                    asyncio.create_task(capture_app_output(proc, from_id))
+                    # Fallback: If no watch variables specified, default to FCW ADAS demo variables
+                    if not watch_vars or not watch_vars.strip():
+                        watch_vars = "ego_speed,collision_risk,current_lane,warning_active,brake_pressure"
+                        print(f"No watch variables specified, using FCW ADAS defaults: {watch_vars}", flush=True)
+                    else:
+                        print(f"Watch vars from frontend: {watch_vars}", flush=True)
+                    
+                    if watch_vars is not None and watch_vars.strip():
+                        print(f"Starting memory monitoring task for variables: {watch_vars}")
+                        await send_reply(from_id, f"Monitoring variables: {watch_vars}\r\n", is_done=False, retcode=0)
+                        
+                        # Start the memory monitoring task asynchronously
+                        asyncio.create_task(cpp_debugger_util.periodic_memory_var_report(sio, from_id, watch_vars))
+                        
+                        # Don't send completion immediately - let the monitoring task handle completion
+                        print(f"Memory monitoring task started for {from_id}")
+                    else:
+                        print("No watch variables specified - running without monitoring")
+                        await send_reply(from_id, "No variables to monitor specified\r\n", is_done=True, retcode=0)
                 else:
-                    print("✗ Failed to start binary", flush=True)
+                    print("✗ Failed to prepare binary for monitoring", flush=True)
 
             except json.JSONDecodeError as e:
                 print(f"Invalid JSON in data.code: {str(e)}", flush=True)
