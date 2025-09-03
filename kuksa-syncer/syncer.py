@@ -26,14 +26,25 @@ from json_array_patch import apply_global_patch
 # Apply global JSON patch for array serialization
 apply_global_patch()
 
-from vehicle_model_manager import generate_vehicle_model, revert_vehicle_model
+# Temporarily disable vehicle model manager due to missing velocitas dependency
+# from vehicle_model_manager import generate_vehicle_model, revert_vehicle_model
+
+# Stub functions for vehicle model management
+def generate_vehicle_model(data):
+    print("generate_vehicle_model: Feature temporarily disabled", flush=True)
+    return True
+
+def revert_vehicle_model():
+    print("revert_vehicle_model: Feature temporarily disabled", flush=True)
+    return True
+
 import pkg_manager
 
 BORKER_IP = '127.0.0.1'
 BROKER_PORT = 55555
 
 DEFAULT_KIT_SERVER = 'https://kit.digitalauto.tech'
-DEFAULT_RUNTIME_NAME = 'MyRuntime'
+DEFAULT_RUNTIME_NAME = 'TriCPP'
 DEFAULT_RUNTIME_PREFIX = 'Runtime-'
 
 TIME_TO_KEEP_SUBSCRIBER_ALIVE = 60
@@ -366,6 +377,153 @@ async def messageToKit(data):
             "request_from": data["request_from"],
             "from": time.time()
         })
+        return 0
+
+    if data["cmd"] == "run_cpp_app":
+        print(f"Received run_cpp_app command", flush=True)
+        from_id = data["request_from"]
+        
+        # Validate that we have the required data structure
+        if "data" not in data:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": from_id,
+                "cmd": "run_cpp_app",
+                "result": "ERROR: No data field in C++ app request",
+                "isError": True,
+                "code": 1
+            })
+            return 0
+            
+        if "code" not in data["data"]:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": from_id,
+                "cmd": "run_cpp_app", 
+                "result": "ERROR: No code field in C++ app data",
+                "isError": True,
+                "code": 1
+            })
+            return 0
+
+        try:
+            # Validate JSON format of project structure
+            code_data = data["data"]["code"]
+            project_structure = json.loads(code_data)
+            print(f"Valid JSON project structure received: {len(project_structure)} files", flush=True)
+            
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": from_id,
+                "cmd": "run_cpp_app",
+                "result": "Processing C++ project...\r\n",
+                "isDone": False,
+                "code": 0
+            })
+
+            # For now, extract main.cpp content and compile it directly
+            main_cpp_content = None
+            for item in project_structure:
+                if item.get("type") == "file" and item.get("name") == "main.cpp":
+                    main_cpp_content = item.get("content", "")
+                    break
+            
+            if not main_cpp_content:
+                await sio.emit("messageToKit-kitReply", {
+                    "kit_id": CLIENT_ID,
+                    "request_from": from_id,
+                    "cmd": "run_cpp_app",
+                    "result": "ERROR: No main.cpp file found in project structure",
+                    "isError": True,
+                    "code": 1
+                })
+                return 0
+
+            # Write the C++ file
+            cpp_filename = "main.cpp"
+            with open(cpp_filename, "w") as f:
+                f.write(main_cpp_content)
+            print(f"Created {cpp_filename}", flush=True)
+
+            # Compile the C++ file
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": from_id,
+                "cmd": "run_cpp_app",
+                "result": "Compiling C++ project...\r\n",
+                "isDone": False,
+                "code": 0
+            })
+
+            compile_cmd = ["g++", "-o", "main_bin", cpp_filename, "-pthread", "-std=c++17"]
+            compile_process = subprocess.run(compile_cmd, capture_output=True, text=True)
+            
+            if compile_process.returncode != 0:
+                error_msg = f"Compilation failed:\n{compile_process.stderr}"
+                print(f"Compilation error: {error_msg}", flush=True)
+                await sio.emit("messageToKit-kitReply", {
+                    "kit_id": CLIENT_ID,
+                    "request_from": from_id,
+                    "cmd": "run_cpp_app",
+                    "result": error_msg,
+                    "isError": True,
+                    "isDone": True,
+                    "code": 1
+                })
+                return 0
+
+            print("✓ C++ compilation successful", flush=True)
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": from_id,
+                "cmd": "run_cpp_app",
+                "result": "Compilation successful! Starting application...\r\n",
+                "isDone": False,
+                "code": 0
+            })
+
+            # Run the compiled binary
+            appName = data["data"].get("name", "CPP App")
+            proc = subpiper(
+                master_id=from_id,
+                cmd='./main_bin',
+                stdout_callback=my_stdout_callback,
+                stderr_callback=my_stderr_callback,
+                finished_callback=process_done
+            )
+            
+            lsOfRunner.append({
+                "appName": appName,
+                "runner": proc,
+                "request_from": from_id,
+                "from": time.time()
+            })
+
+            print(f"✓ C++ app started successfully", flush=True)
+            
+        except json.JSONDecodeError as e:
+            error_msg = f"Invalid JSON in project structure: {str(e)}"
+            print(error_msg, flush=True)
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": from_id,
+                "cmd": "run_cpp_app",
+                "result": error_msg,
+                "isError": True,
+                "code": 1
+            })
+        except Exception as e:
+            error_msg = f"Error processing C++ project: {str(e)}"
+            print(error_msg, flush=True)
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": from_id,
+                "cmd": "run_cpp_app",
+                "result": error_msg,
+                "isError": True,
+                "code": 1
+            })
+
         return 0
     
     if data["cmd"] == "run_bin_app":

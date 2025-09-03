@@ -23,6 +23,22 @@
 2. **Enhanced Logging**: Added debug logging for C++ project structure and WebSocket messages
 3. **Error Handling**: Added comprehensive error logging in onKitReply
 
+### Backend Changes (`sdv-runtime-fork/kuksa-syncer/syncer.py`)
+1. **Added run_cpp_app Handler**: Complete C++ application processing pipeline:
+   - Validates JSON project structure
+   - Extracts main.cpp content
+   - Compiles with g++ (C++17, pthread support)
+   - Runs compiled binary using subpiper
+   - Provides detailed error messages
+
+2. **Error Validation**: Comprehensive validation of request format:
+   - Checks for data field presence
+   - Validates code field in data
+   - JSON parsing validation
+   - File extraction validation
+
+3. **Module Dependencies**: Fixed velocitas module issue with stub functions
+
 ## Test Procedure
 
 ### Step 1: Deploy Test C++ Project
