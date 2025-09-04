@@ -26,19 +26,57 @@ from json_array_patch import apply_global_patch
 # Apply global JSON patch for array serialization
 apply_global_patch()
 
-from vehicle_model_manager import generate_vehicle_model, revert_vehicle_model
-import pkg_manager
+# Import optional dependencies with proper error handling
+try:
+    from vehicle_model_manager import generate_vehicle_model, revert_vehicle_model
+    VEHICLE_MODEL_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Vehicle model manager not available: {e}")
+    VEHICLE_MODEL_AVAILABLE = False
+    # Provide dummy functions
+    def generate_vehicle_model(*args, **kwargs):
+        raise NotImplementedError("Vehicle model manager not available")
+    def revert_vehicle_model(*args, **kwargs):
+        raise NotImplementedError("Vehicle model manager not available")
+
+try:
+    import pkg_manager
+    PKG_MANAGER_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Package manager not available: {e}")
+    PKG_MANAGER_AVAILABLE = False
+    # Provide dummy pkg_manager
+    class DummyPkgManager:
+        @staticmethod
+        def listPkg():
+            return {"error": "Package manager not available"}
+        @staticmethod
+        async def installPkg(packages):
+            return "Package manager not available"
+    pkg_manager = DummyPkgManager()
+
+# Import C++ memory monitoring functionality
+try:
+    from project_utils import ProjectUtils
+    import cpp_memory_debugger as cpp_debugger_util
+    CPP_MEMORY_AVAILABLE = True
+    print("✓ C++ memory monitoring functionality loaded")
+except ImportError as e:
+    print(f"Warning: C++ memory monitoring not available: {e}")
+    CPP_MEMORY_AVAILABLE = False
 
 BORKER_IP = '127.0.0.1'
 BROKER_PORT = 55555
 
 DEFAULT_KIT_SERVER = 'https://kit.digitalauto.tech'
-DEFAULT_RUNTIME_NAME = 'MyRuntime'
+DEFAULT_RUNTIME_NAME = 'TriCPP'
 DEFAULT_RUNTIME_PREFIX = 'Runtime-'
 
 TIME_TO_KEEP_SUBSCRIBER_ALIVE = 60
 TIME_TO_KEEP_RUNNER_ALIVE = 3*60
 
+# C++ process tracking
+cpp_processes = {}  # {from_id: [process_info_dict]}
 
 lsOfRunner = []
 
@@ -84,6 +122,57 @@ async def send_app_deploy_reply(master_id, content, is_finish, cmd="deploy-reque
         "is_finish": is_finish
     })
 
+async def send_reply(master_id, content, is_error=False, is_done=False, retcode=0, cmd="run_python_app"):
+    """General reply function for C++ operations"""
+    await sio.emit("messageToKit-kitReply", {
+        "kit_id": CLIENT_ID,
+        "request_from": master_id,
+        "cmd": cmd,
+        "data": content,
+        "isError": is_error,
+        "isDone": is_done,
+        "result": content,
+        "code": retcode
+    })
+
+async def stop_client_processes(from_id):
+    """Stop all C++ processes belonging to a specific client"""
+    if from_id in cpp_processes:
+        print(f"Stopping all C++ processes for client {from_id}", flush=True)
+        
+        for process_info in cpp_processes[from_id]:
+            try:
+                if "proc" in process_info and process_info["proc"] is not None:
+                    proc = process_info["proc"]
+                    pid = process_info.get("pid")
+                    
+                    print(f"Terminating C++ process PID {pid} for client {from_id}", flush=True)
+                    proc.terminate()
+                    
+                    # Wait for graceful termination
+                    try:
+                        await asyncio.wait_for(proc.wait(), timeout=5.0)
+                        print(f"C++ process PID {pid} terminated gracefully", flush=True)
+                    except asyncio.TimeoutExpired:
+                        print(f"C++ process PID {pid} didn't terminate gracefully, killing it", flush=True)
+                        proc.kill()
+                        
+            except Exception as e:
+                print(f"Error stopping C++ process: {str(e)}", flush=True)
+        
+        # Clear the client's process list
+        del cpp_processes[from_id]
+        print(f"Cleared all C++ processes for client {from_id}", flush=True)
+        
+        # Clean up memory monitor
+        if CPP_MEMORY_AVAILABLE:
+            cpp_debugger_util.cleanup_memory_monitor()
+        
+        return True
+    else:
+        print(f"No C++ processes found for client {from_id}", flush=True)
+        return False
+
 def process_done(master_id: str, retcode: int):
     asyncio.run(send_app_run_reply(master_id, True, retcode, ""))
 
@@ -120,11 +209,36 @@ def wait_for_databroker_ready(max_attempts=10, sleep_time=0.5):
 
 @sio.event
 async def messageToKit(data):
-    # print("SYNCER: Command received from server",flush=True)
-    # print(data,flush=True)
+    print("SYNCER: Command received from server", flush=True)
+    print(f"Command: {data.get('cmd', 'UNKNOWN')}", flush=True)
+    print(f"Full data: {data}", flush=True)
     if data["cmd"] in ("deploy_request", "deploy-request"):
         print("Receive deploy_request...")
-        request_from =  data["request_from"]
+        request_from = data["request_from"]
+        
+        # Check if this might be a C++ project in deploy_request format
+        if CPP_MEMORY_AVAILABLE and "code" in data:
+            try:
+                # Try to parse as JSON project structure
+                json.loads(data["code"])
+                print(f"Deploy request contains JSON project - treating as C++ project", flush=True)
+                
+                # Convert deploy_request to run_cpp_app format and redirect
+                cpp_data = {
+                    "cmd": "run_cpp_app",
+                    "request_from": data["request_from"],
+                    "data": {
+                        "code": data["code"],
+                        "watch_vars": data.get("watch_vars", "")
+                    }
+                }
+                
+                # Recursively call messageToKit with converted format
+                return await messageToKit(cpp_data)
+                
+            except json.JSONDecodeError:
+                print(f"Deploy request contains non-JSON code - treating as regular Python deploy", flush=True)
+                # Fall through to original deploy handling
         # your code to run app
         await send_app_deploy_reply(request_from, "Receive deploy request \r\n", False, data["cmd"])
         await asyncio.sleep(1)
@@ -228,6 +342,15 @@ async def messageToKit(data):
         return 0
     
     if data["cmd"] == "generate_vehicle_model":
+        if not VEHICLE_MODEL_AVAILABLE:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "generate_vehicle_model",
+                "result": "Error: Vehicle model manager not available"
+            })
+            return 0
+            
         print("receive reauest generate_vehicle_model")
         # print(data["data"])
         # print type of data["data"]
@@ -273,10 +396,20 @@ async def messageToKit(data):
                 "cmd": "generate_vehicle_model",
                 "result": "Error: generate_vehicle_model Failed: " + str(e) + "\r\nRevert back to default model" 
             })
-            revert_vehicle_model();
+            if VEHICLE_MODEL_AVAILABLE:
+                revert_vehicle_model()
             return 0
 
     if data["cmd"] == "revert_vehicle_model":
+        if not VEHICLE_MODEL_AVAILABLE:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "revert_vehicle_model",
+                "result": "Error: Vehicle model manager not available"
+            })
+            return 0
+            
         await sio.emit("messageToKit-kitReply", {
             "kit_id": CLIENT_ID,
             "request_from": data["request_from"],
@@ -296,6 +429,16 @@ async def messageToKit(data):
         return 0  
     
     if data["cmd"] == "list_python_packages":
+        if not PKG_MANAGER_AVAILABLE:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "list_python_packages",
+                "data": {"error": "Package manager not available"},
+                "result": "Error: Package manager not available"
+            })
+            return 0
+            
         pkgs = pkg_manager.listPkg()
         # print(pkgs,flush=True)
         await sio.emit("messageToKit-kitReply", {
@@ -308,6 +451,16 @@ async def messageToKit(data):
         return 0
         
     if data["cmd"] == "install_python_packages":
+        if not PKG_MANAGER_AVAILABLE:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "install_python_packages",
+                "result": "Error: Package manager not available",
+                "data": "Package manager not available"
+            })
+            return 0
+            
         msg = data["data"]
         await sio.emit("messageToKit-kitReply", {
             "kit_id": CLIENT_ID,
@@ -329,7 +482,129 @@ async def messageToKit(data):
 
         return 0  
 
+    # Handle C++ application commands (multiple possible command names)
+    if data["cmd"] in ("run_cpp_app", "compile_cpp_app", "build_cpp_app") and CPP_MEMORY_AVAILABLE:
+        print(f"Processing C++ command '{data['cmd']}' with CPP_MEMORY_AVAILABLE={CPP_MEMORY_AVAILABLE}", flush=True)
+        from_id = data["request_from"]
+        
+        # Check if data.code exists and is valid JSON (C++ projects)
+        if "data" in data and "code" in data["data"]:
+            try:
+                # Validate JSON format
+                code_data = data["data"]["code"]
+                json.loads(code_data)  # This will raise an error if invalid JSON
+
+                print(f"C++ application requested, processing project data...", flush=True)
+
+                # Initialize ProjectUtils
+                project_utils = ProjectUtils()
+
+                # Step 1: Clean up app directory
+                print("Step 1: Cleaning up app directory...", flush=True)
+                cleanup_success = project_utils.empty_app_directory()
+                if cleanup_success:
+                    print("✓ App directory cleaned successfully", flush=True)
+                    await send_reply(from_id, "App directory cleaned successfully\r\n", is_done=False, retcode=0)
+                else:
+                    print("✗ Failed to clean app directory", flush=True)
+                    await send_reply(from_id, "Failed to clean app directory\r\n", is_error=True, retcode=1)
+                    return 0
+
+                # Step 2: Create content in app based on payload data.code
+                await send_reply(from_id, "Creating C++ project content...\r\n", is_done=False, retcode=0)
+                try:
+                    app_path = project_utils.save_from_payload(data)
+                    print(f"✓ C++ project content created successfully", flush=True)
+                except Exception as e:
+                    print(f"✗ Failed to create C++ project content: {str(e)}", flush=True)
+                    await send_reply(from_id, f"Failed to create C++ project content: {str(e)}", is_error=True, retcode=1)
+                    return 0
+                await send_reply(from_id, "C++ project content created successfully\r\n", is_done=False, retcode=0)
+
+                # Step 3: Compile C++ project (pure compilation, no injection)
+                compile_ok, compile_msg = await cpp_debugger_util.compile_cpp()
+                print(f"Compiling C++ project...\r\n{compile_msg}", flush=True)
+                await send_reply(from_id, f"Compiling C++ project...\r\n{compile_msg}\r\n", is_done=False, retcode=0)
+                if not compile_ok:
+                    await send_reply(from_id, "C++ compilation failed", is_error=True, is_done=True, retcode=1)
+                    return 0
+                
+                print("Starting C++ memory monitoring approach")
+                await send_reply(from_id, "Starting high-performance memory monitoring...\r\n", is_done=False, retcode=0)
+                
+                # Start memory monitoring (replaces traditional run_binary)
+                binary_path, pid, run_msg = await cpp_debugger_util.run_binary()
+                await send_reply(from_id, f"Binary ready: {run_msg}\r\n", is_done=False, retcode=0)
+                
+                if binary_path is not None:
+                    # Track memory monitoring for this client
+                    if from_id not in cpp_processes:
+                        cpp_processes[from_id] = []
+                    
+                    cpp_processes[from_id].append({
+                        "binary_path": binary_path,
+                        "type": "cpp_memory",
+                        "monitor_active": True,
+                        "start_time": time.time()
+                    })
+                    
+                    print(f"Prepared C++ memory monitoring for binary {binary_path} for client {from_id}", flush=True)
+                    
+                    # Get watch_vars from data if present
+                    watch_vars = data["data"].get("watch_vars", "")
+                    
+                    # Fallback: If no watch variables specified, default to common variables
+                    if not watch_vars or not watch_vars.strip():
+                        watch_vars = "counter,sensor_value,ego_speed,collision_risk,current_lane,warning_active,brake_pressure"
+                        print(f"No watch variables specified, using defaults: {watch_vars}", flush=True)
+                    else:
+                        print(f"Watch vars from frontend: {watch_vars}", flush=True)
+                    
+                    if watch_vars is not None and watch_vars.strip():
+                        print(f"Starting C++ memory monitoring task for variables: {watch_vars}")
+                        await send_reply(from_id, f"Monitoring variables: {watch_vars}\r\n", is_done=False, retcode=0, cmd=data["cmd"])
+                        
+                        # Start the memory monitoring task asynchronously
+                        asyncio.create_task(cpp_debugger_util.periodic_memory_var_report(sio, from_id, watch_vars))
+                        
+                        # Don't send completion immediately - let the monitoring task handle completion
+                        print(f"C++ memory monitoring task started for {from_id} via command {data['cmd']}")
+                        return 0
+                    else:
+                        print("No watch variables specified - running without monitoring")
+                        await send_reply(from_id, "No variables to monitor specified\r\n", is_done=True, retcode=0, cmd=data["cmd"])
+                        return 0
+                else:
+                    print("✗ Failed to prepare binary for C++ monitoring", flush=True)
+                    await send_reply(from_id, "Failed to prepare binary for monitoring", is_error=True, is_done=True, retcode=1, cmd=data["cmd"])
+                    return 0
+
+            except json.JSONDecodeError as e:
+                print(f"Invalid JSON in C++ code data: {str(e)}", flush=True)
+                await send_reply(from_id, f"Invalid JSON format in C++ project: {str(e)}", is_error=True, retcode=1, cmd=data["cmd"])
+                return 0
+            except Exception as e:
+                print(f"Error processing C++ project data: {str(e)}", flush=True)
+                await send_reply(from_id, f"Error processing C++ project data: {str(e)}", is_error=True, retcode=1, cmd=data["cmd"])
+                return 0
+        else:
+            await send_reply(from_id, "Missing code data for C++ project", is_error=True, retcode=1, cmd=data["cmd"])
+            return 0
+    
+    elif data["cmd"] in ("run_cpp_app", "compile_cpp_app", "build_cpp_app"):
+        print(f"C++ command '{data['cmd']}' received but CPP_MEMORY_AVAILABLE={CPP_MEMORY_AVAILABLE}", flush=True)
+        # C++ not available
+        await sio.emit("messageToKit-kitReply", {
+            "kit_id": CLIENT_ID,
+            "request_from": data["request_from"],
+            "cmd": data["cmd"],
+            "result": "Error: C++ memory monitoring not available",
+            "data": ""
+        })
+        return 0
+            
     if data["cmd"] == "run_python_app":
+        # Original Python app execution - unchanged behavior
         # check do we have data["data"]["code"]
         if "code" not in data["data"]:
             await sio.emit("messageToKit-kitReply", {
@@ -345,13 +620,13 @@ async def messageToKit(data):
             appName = data["data"]["name"]
         
         writeCodeToFile(data["data"]["code"], filename="main.py")
-        # try:
-        usedAPIs = data["usedAPIs"]
-        if isinstance(usedAPIs,list) and len(usedAPIs)>0:
-            appendMockSignal(usedAPIs)
-        # except Exception as e:
-        #     print("Fail to appendMockSignal for usedAPIs")
-        #     print(str(e))
+        try:
+            usedAPIs = data["usedAPIs"]
+            if isinstance(usedAPIs,list) and len(usedAPIs)>0:
+                appendMockSignal(usedAPIs)
+        except Exception as e:
+            print("Fail to appendMockSignal for usedAPIs")
+            print(str(e))
 
         proc = subpiper(
             master_id=data["request_from"],
@@ -412,23 +687,38 @@ async def messageToKit(data):
             }) 
         return 0
     
-    elif data["cmd"] == "stop_python_app":
-        # print(data["code"])
+    elif data["cmd"] in ("stop_python_app", "stop_cpp_app"):
+        from_id = data["request_from"]
+        
+        # Stop C++ processes if any
+        cpp_stopped = False
+        if CPP_MEMORY_AVAILABLE and from_id in cpp_processes:
+            cpp_stopped = await stop_client_processes(from_id)
+            if cpp_stopped:
+                await send_reply(from_id, "C++ processes stopped successfully\r\n", is_done=True, retcode=0)
+        
+        # Stop Python processes
+        python_stopped = False
         for runner in lsOfRunner:
-            if runner["request_from"] == data["request_from"]:
+            if runner["request_from"] == from_id:
                 proc = runner["runner"]
                 if proc is not None:
                     try:
                         proc.kill()
                         lsOfRunner.remove(runner)
+                        python_stopped = True
                     except Exception as e:
                         print("Kill proc get error", str(e))
                         await sio.emit("messageToKit-kitReply", {
                             "kit_id": CLIENT_ID,
                             "request_from": data["request_from"],
-                            "cmd": "stop_python_app",
+                            "cmd": data["cmd"],
                             "result": str(e)
                         })
+        
+        if not cpp_stopped and not python_stopped:
+            await send_reply(from_id, "No processes found to stop\r\n", is_done=True, retcode=0)
+        
         return 0
     
     elif data["cmd"] == "get-runtime-info":
@@ -443,6 +733,8 @@ async def messageToKit(data):
             
         })
         return 0
+    
+    print(f"WARNING: Unhandled command '{data.get('cmd', 'UNKNOWN')}' - syncer did nothing!", flush=True)
     return 1
 
 def convertLsOfRunnerToJson(lsOfRunner):
@@ -600,9 +892,12 @@ async def ticker_fast():
         if len(lsOfApiSubscriber) <= 0:
             continue
         if not client.connected:
-            await client.connect()
-            print("Kuksa connected", client.connected)
-            continue
+            try:
+                await client.connect()
+                print("Kuksa connected", client.connected)
+            except Exception as e:
+                # Kuksa not available, skip this iteration
+                continue
 
         try:
             for client_id in lsOfApiSubscriber:
@@ -651,7 +946,8 @@ async def ticker_fast():
         - Stop long runner
 '''
 async def ticker():
-    print("Kuksa connected", client.connected)
+    # Don't require Kuksa to be connected
+    print("Ticker started, Kuksa connected:", client.connected if hasattr(client, 'connected') else False)
     while True:
         await asyncio.sleep(1)
 
@@ -729,7 +1025,14 @@ async def main():
     CLIENT_ID = runtime_prefix + runtime_name
     print("RunTime display name: " + CLIENT_ID, flush=True)
 
-    await client.connect()
+    # Try to connect to Kuksa but don't fail if it's not available
+    try:
+        await client.connect()
+        print("Connected to Kuksa databroker", flush=True)
+    except Exception as e:
+        print(f"Warning: Could not connect to Kuksa databroker: {e}", flush=True)
+        print("Continuing without Kuksa connection - some features may be limited", flush=True)
+    
     await asyncio.gather(start_socketio(SERVER), ticker(), ticker_fast(), ticker_5s())
 
 if __name__ == "__main__":
