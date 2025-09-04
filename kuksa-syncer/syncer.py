@@ -581,7 +581,6 @@ async def messageToKit(data):
                                     break
                         
                         # Start the enhanced memory monitoring task with stdout forwarding and completion callback
-                        import cpp_memory_debugger as cpp_debugger_util
                         task = asyncio.create_task(cpp_debugger_util.periodic_memory_var_report(
                             sio, from_id, watch_vars, send_reply_func=cpp_completion_callback))
                         monitoring_tasks[from_id] = task
