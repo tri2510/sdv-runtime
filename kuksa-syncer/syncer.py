@@ -797,37 +797,41 @@ def appendMockSignal(signals):
         hasNew = False
         with KClient(BORKER_IP, BROKER_PORT) as kclient:
             with open(mock_signal_path,'r+') as f:
-            content = f.read()
-            # print(f"mock file content")
-            if len(content) == 0 :
-                content = "[]"
-            # print(content)
-            cur_mocks = json.loads(content)
-            cur_mock_names = []
-            for cur_mock in cur_mocks:
-                cur_mock_names.append(cur_mock["signal"])
-            # print("cur_mock_names", cur_mock_names)
-            for run_signal in signals:
-                if run_signal not in cur_mock_names:
-                    try: 
-                        if kclient.get_metadata([run_signal, ]) is not None:
-                            hasNew = True
-                            print(f">>> Append new mock signal {run_signal}")
-                            cur_mock_names.append(run_signal)
-                            cur_mocks.append({
-                                "signal":  run_signal,
-                                "value": "0"
-                            })
-                    except Exception as e:
-                        print(e,flush=True)
-                    
-            if hasNew:
-                f.seek(0)
-                json.dump(cur_mocks,f,indent=4)
-                f.truncate()
+                content = f.read()
+                # print(f"mock file content")
+                if len(content) == 0 :
+                    content = "[]"
+                # print(content)
+                cur_mocks = json.loads(content)
+                cur_mock_names = []
+                for cur_mock in cur_mocks:
+                    cur_mock_names.append(cur_mock["signal"])
+                # print("cur_mock_names", cur_mock_names)
+                for run_signal in signals:
+                    if run_signal not in cur_mock_names:
+                        try: 
+                            if kclient.get_metadata([run_signal, ]) is not None:
+                                hasNew = True
+                                print(f">>> Append new mock signal {run_signal}")
+                                cur_mock_names.append(run_signal)
+                                cur_mocks.append({
+                                    "signal":  run_signal,
+                                    "value": "0"
+                                })
+                        except Exception as e:
+                            print(e,flush=True)
+                        
+                if hasNew:
+                    f.seek(0)
+                    json.dump(cur_mocks,f,indent=4)
+                    f.truncate()
 
-    if hasNew:
-        restartMockProvider()
+        if hasNew:
+            restartMockProvider()
+            
+    except Exception as e:
+        print(f"KUKSA mock signal operation failed: {e}")
+        # Continue without KUKSA functionality
         
     return 0
 
