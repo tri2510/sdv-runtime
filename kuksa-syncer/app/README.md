@@ -1,105 +1,82 @@
-# Customer FCW ADAS System
+# Autonomous Vehicle System
 
-This project implements a Forward Collision Warning (FCW) system based on customer requirements for a 4-lane highway scenario with comprehensive vehicle monitoring.
+A complex, multi-module C++ project simulating an autonomous vehicle control system for testing the SDV runtime monitoring mechanism.
 
-## Project Overview
+## Project Structure
 
-Based on the customer specifications from `/customer-files/requirements/detail_envrionment.md`:
-
-- **4-lane highway simulation** (Lane 1-4, ego vehicle in Lane 2 or 3)
-- **Comprehensive vehicle environment** with front/rear/left/right vehicles
-- **Infrastructure elements** including traffic lights, speed limits, road gradients
-- **Two scenarios**: With/without warning system
-- **Collision avoidance** through deceleration and lane change maneuvers
-
-## Monitored Variables (20+ Variables)
-
-### 🚗 Vehicle State Variables
-- `ego_speed` (float) - Current vehicle speed in km/h
-- `current_lane` (int) - Current lane position (1-4)
-- `ego_acceleration` (float) - Vehicle acceleration in m/s²
-- `steering_angle` (float) - Steering wheel angle in degrees
-
-### ⚠️ FCW Warning System Variables
-- `collision_risk` (int) - Collision probability percentage (0-100%)
-- `warning_active` (bool) - FCW warning system status
-- `critical_warning` (bool) - Critical collision warning flag
-- `time_to_collision` (float) - Time to collision in seconds
-
-### 🎛️ Vehicle Control Variables
-- `brake_pressure` (float) - Brake application percentage (0-100%)
-- `throttle_position` (float) - Accelerator pedal position (0-100%)
-- `emergency_brake_active` (bool) - Emergency braking system status
-
-### 🌍 Environment Variables
-- `traffic_light_state` (int) - Traffic light status (0=Red, 1=Yellow, 2=Green)
-- `speed_limit` (float) - Current speed limit in km/h
-- `road_gradient` (float) - Road slope in degrees (uphill/downhill)
-- `weather_condition_good` (bool) - Weather visibility impact
-
-### 🚙 Surrounding Vehicle Variables
-- `front_vehicle_distance` (float) - Distance to front vehicle in meters
-- `front_vehicle_speed` (float) - Front vehicle speed in km/h
-- `left_vehicle_distance` (float) - Distance to left lane vehicle
-- `right_vehicle_distance` (float) - Distance to right lane vehicle
-
-### 📡 V2X Communication Variables
-- `v2x_connected` (bool) - V2X communication system status
-- `received_warnings` (int) - Number of V2X warnings received
-- `infrastructure_warning` (bool) - Infrastructure collision warning
-
-## System Features
-
-### 1. **Realistic FCW Collision Detection**
-- Time-to-Collision (TTC) calculations
-- Risk assessment based on distance and relative speed
-- Progressive warning levels (info → warning → critical)
-
-### 2. **Collision Avoidance Responses**
-- **Scenario 1 (Without Warning)**: Natural collision progression
-- **Scenario 2 (With Warning)**: Active collision avoidance through:
-  - Emergency braking with variable pressure
-  - Lane change maneuvers when safe
-  - Speed adjustment based on traffic conditions
-
-### 3. **Environmental Integration**
-- Traffic light awareness affecting behavior
-- Speed limit compliance
-- Road gradient impact on braking distance
-- Weather condition considerations
-
-### 4. **V2X Communication Simulation**
-- Infrastructure-to-vehicle warnings
-- Communication reliability simulation
-- Warning message processing
-
-## Usage with Memory Monitoring
-
-### Variables to Monitor:
 ```
-ego_speed,collision_risk,current_lane,warning_active,brake_pressure,critical_warning,time_to_collision,front_vehicle_distance,v2x_connected,traffic_light_state
+autonomous-vehicle-system/
+├── main.cpp                 # Main application entry point
+├── sensors/                 # Sensor management subsystem
+│   ├── sensor_manager.h
+│   └── sensor_manager.cpp
+├── control/                 # Vehicle control subsystem
+│   ├── vehicle_controller.h
+│   └── vehicle_controller.cpp
+├── perception/              # Environment perception subsystem
+│   ├── environment_analyzer.h
+│   └── environment_analyzer.cpp
+├── planning/                # Path planning subsystem
+│   ├── path_planner.h
+│   └── path_planner.cpp
+├── utils/                   # Utility classes
+│   ├── logger.h
+│   └── logger.cpp
+├── CMakeLists.txt          # Build configuration
+└── README.md               # This file
 ```
 
-### Compilation:
+## Monitored Variables
+
+The system exposes the following atomic variables for SDV runtime monitoring:
+
+### Global Variables (main.cpp)
+- `vehicle_speed` (float) - Current vehicle speed in km/h
+- `current_gear` (int) - Current transmission gear (1-5)
+- `engine_rpm` (float) - Engine RPM
+- `autonomous_mode` (bool) - Autonomous driving mode status
+- `fuel_level` (float) - Fuel level percentage
+- `active_sensors` (int) - Number of active sensors
+- `cpu_temperature` (float) - System CPU temperature
+
+### Subsystem Variables
+Each subsystem contains additional atomic variables that change during execution:
+- **Sensors**: LIDAR range, camera distance, radar speed, GPS status
+- **Control**: Throttle position, brake force, steering angle
+- **Perception**: Detected objects, nearest object distance, traffic light state
+- **Planning**: Waypoint count, path distance, path validity, target speed
+- **Utils**: Log counts, error counts, warning counts
+
+## Features
+
+- **Multi-threaded Architecture**: Uses std::thread for concurrent operations
+- **Realistic Simulation**: Variables change with automotive-realistic patterns
+- **Complex Interactions**: Subsystems interact and affect each other's state
+- **Comprehensive Logging**: Detailed logging with atomic counters
+- **Build System**: CMake-based build with proper debug symbol generation
+
+## Building
+
 ```bash
-g++ -g -O0 -std=c++11 -pthread main.cpp -o fcw_adas_system
+cd autonomous-vehicle-system
+mkdir build && cd build
+cmake ..
+make
 ```
 
-### Expected Monitoring Output:
-- **Real-time speed changes** as system responds to warnings
-- **Collision risk fluctuations** from 0-100% based on traffic
-- **Lane changes** from 2→1 or 2→3 during overtaking
-- **Warning state transitions** from false→true during hazards
-- **Brake pressure variations** during collision avoidance
-- **V2X communication status** and warning counts
+## Running
 
-## Customer Requirements Compliance
+```bash
+./autonomous_vehicle_system
+```
 
-✅ **4-lane environment** with ego vehicle in Lane 2/3  
-✅ **Surrounding vehicles** in all directions with realistic movement  
-✅ **Infrastructure elements** (traffic lights, speed limits, gradients)  
-✅ **Two scenarios** implemented (with/without warning system)  
-✅ **Collision avoidance** through deceleration and lane changes  
-✅ **Real-time monitoring** of all critical system variables  
+The system runs for 60 control cycles (30 seconds), updating all monitored variables with realistic automotive data patterns.
 
-This project provides comprehensive testing of the C++ memory monitoring system with realistic automotive ADAS scenarios matching customer specifications.
+## SDV Runtime Integration
+
+This project is specifically designed to test the SDV runtime monitoring mechanism with:
+- Complex multi-file project structure
+- Multiple atomic variables across different modules
+- Realistic data patterns that change over time
+- External symbol references between compilation units
+- CMake build system integration

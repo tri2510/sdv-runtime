@@ -79,24 +79,39 @@ class AutoMemoryMonitor:
             print(f"📈 Monitoring ALL {len(filtered)} detected variables")
             return filtered
         
-        # Monitor only requested variables
-        requested_names = [v.strip() for v in watch_vars_str.split(',')]
+        # Monitor only requested variables (case-insensitive)
+        requested_names = [v.strip().lower() for v in watch_vars_str.split(',')]
         filtered = []
+        not_found = []
         
-        for var in self.monitorable_vars:
-            if var['name'] in requested_names and var['found_in_binary']:
-                filtered.append(var)
-        
-        # Also check for partial matches
-        if len(filtered) < len(requested_names):
+        for req_name in requested_names:
+            found = False
+            # First try exact match (case-insensitive)
             for var in self.monitorable_vars:
-                if var['found_in_binary']:
-                    for req_name in requested_names:
-                        if req_name in var['name'] and var not in filtered:
+                if var['found_in_binary'] and var['name'].lower() == req_name:
+                    if var not in filtered:
+                        filtered.append(var)
+                        found = True
+                        break
+            
+            # If not found, try partial match
+            if not found:
+                for var in self.monitorable_vars:
+                    if var['found_in_binary'] and req_name in var['name'].lower():
+                        if var not in filtered:
                             filtered.append(var)
+                            found = True
                             break
+            
+            if not found:
+                not_found.append(req_name)
         
-        print(f"📈 Monitoring {len(filtered)} requested variables: {[v['name'] for v in filtered]}")
+        if not_found:
+            print(f"⚠️ Variables not found: {', '.join(not_found)}")
+        
+        if filtered:
+            print(f"📈 Monitoring {len(filtered)} variables: {[v['name'] for v in filtered]}")
+        
         return filtered
     
     def start_process(self) -> bool:
@@ -181,7 +196,16 @@ async def start_auto_monitoring(watch_vars_str: str = "") -> tuple:
         auto_monitor.vars_to_monitor = auto_monitor.filter_requested_variables(watch_vars_str)
         
         if not auto_monitor.vars_to_monitor:
-            return ("error", f"No requested variables found: {watch_vars_str}")
+            # If no requested variables found, use all available variables
+            print(f"⚠️ Warning: No requested variables found: {watch_vars_str}")
+            print("📊 Proceeding with ALL detected variables instead...")
+            auto_monitor.vars_to_monitor = [var for var in auto_monitor.monitorable_vars if var['found_in_binary']]
+            
+            if not auto_monitor.vars_to_monitor:
+                return ("error", "No monitorable variables found in binary")
+            
+            monitored_names = [v['name'] for v in auto_monitor.vars_to_monitor]
+            print(f"✅ Monitoring ALL {len(monitored_names)} variables: {', '.join(monitored_names)}")
         
         # Step 5: Start process
         if not auto_monitor.start_process():
