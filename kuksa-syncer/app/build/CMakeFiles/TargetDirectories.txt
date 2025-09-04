@@ -1,0 +1,3 @@
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/kuksa-syncer/app/build/CMakeFiles/fcw_system.dir
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/kuksa-syncer/app/build/CMakeFiles/edit_cache.dir
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/kuksa-syncer/app/build/CMakeFiles/rebuild_cache.dir
