@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 # Add kuksa-syncer to path
-sys.path.insert(0, str(Path(__file__).parent / 'kuksa-syncer'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'kuksa-syncer'))
 
 def test_automotive_variables():
     """Test with automotive variable names that match kit server expectations."""

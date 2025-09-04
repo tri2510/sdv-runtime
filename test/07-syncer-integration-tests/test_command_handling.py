@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 # Add kuksa-syncer to path
-sys.path.insert(0, str(Path(__file__).parent / 'kuksa-syncer'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'kuksa-syncer'))
 
 def test_command_routing():
     """Test that commands are routed correctly."""

@@ -8,6 +8,9 @@ import re
 import subprocess
 import struct
 import ctypes
+import os
+import time
+import signal
 from typing import Dict, List, Tuple, Optional, Any, Union
 from pathlib import Path
 
@@ -162,6 +165,7 @@ class SmartMemoryReader:
         self.PTRACE_DETACH = 17 
         self.PTRACE_PEEKDATA = 2
         self.attached = False
+        self.base_address = None
     
     def attach(self) -> bool:
         """Attach to process."""
@@ -172,13 +176,50 @@ class SmartMemoryReader:
                 import time
                 time.sleep(0.2)  # Give more time for attach
                 
-                # Continue the process after attaching
+                # Get process base address while process is stopped
+                self.base_address = self.get_process_base_address()
+                
+                # Continue the process after getting base address
                 PTRACE_CONT = 7
                 self.libc.ptrace(PTRACE_CONT, self.pid, 0, 0)
+                
                 return True
         except Exception as e:
             print(f"Failed to attach to PID {self.pid}: {e}")
         return False
+    
+    def get_data_section_address(self) -> Optional[int]:
+        """Get the actual memory address where the data section is loaded."""
+        try:
+            with open(f'/proc/{self.pid}/maps', 'r') as f:
+                lines = f.readlines()
+                print(f"   📄 Looking for data section in {len(lines)} memory map entries")
+                
+                for i, line in enumerate(lines):
+                    if 'main_bin' in line and 'rw-p' in line:  # Read-write section = data/bss
+                        parts = line.split()
+                        if len(parts) >= 6:
+                            addr_range = parts[0]
+                            permissions = parts[1]
+                            file_offset = parts[2]
+                            start_addr = addr_range.split('-')[0]
+                            data_addr = int(start_addr, 16)
+                            
+                            print(f"   📍 Data section: 0x{data_addr:x} ({permissions}) file_offset={file_offset}")
+                            
+                            # The data section virtual address in ELF starts at 0x4000
+                            # So we need: actual_address = data_section_base + (symbol_addr - 0x4000)  
+                            elf_data_start = 0x4000
+                            print(f"   🏠 Data section base: 0x{data_addr:x}, ELF data starts at 0x{elf_data_start:x}")
+                            return data_addr - elf_data_start  # This will be our "base" for calculations
+                            
+        except Exception as e:
+            print(f"Error getting data section address: {e}")
+        return None
+    
+    def get_process_base_address(self) -> Optional[int]:
+        """Get base address for variable calculations."""
+        return self.get_data_section_address()
     
     def detach(self):
         """Detach from process."""
@@ -190,51 +231,78 @@ class SmartMemoryReader:
                 pass
     
     def read_variable_value(self, var_info: Dict[str, Any]) -> Optional[Union[int, float, bool]]:
-        """Read variable value based on its detected type."""
-        if not self.attached:
+        """Read variable value using the WORKING /proc/pid/mem approach first."""
+        if not self.attached or not self.base_address:
             return None
         
         try:
-            addr = var_info['symbol_address']
+            symbol_addr = var_info['symbol_address'] 
             var_type = var_info['type']
             size_bytes = var_info['size_bytes']
             
-            # Read memory data
-            data = self.libc.ptrace(self.PTRACE_PEEKDATA, self.pid, addr, 0)
-            if data == -1:
-                return None
+            # Calculate actual memory address: base + symbol offset
+            actual_addr = self.base_address + symbol_addr
             
-            # Parse based on detected type
-            if var_type == 'int':
-                return ctypes.c_int32(data & 0xFFFFFFFF).value
+            # Method 1: Try /proc/pid/mem FIRST (the original working approach)
+            try:
+                with open(f'/proc/{self.pid}/mem', 'rb') as mem_file:
+                    mem_file.seek(actual_addr)
+                    
+                    if var_type == 'int':
+                        data = mem_file.read(4)
+                        if len(data) == 4:
+                            return struct.unpack('<i', data)[0]
+                    elif var_type == 'float':
+                        data = mem_file.read(4)
+                        if len(data) == 4:
+                            value = struct.unpack('<f', data)[0]
+                            # Check for reasonable float values
+                            import math
+                            if not (math.isnan(value) or math.isinf(value)):
+                                return value
+                    elif var_type == 'bool':
+                        data = mem_file.read(1)
+                        if len(data) == 1:
+                            return bool(data[0])
+                            
+            except (OSError, IOError):
+                # Method 2: Fall back to ptrace ONLY if /proc/mem fails
+                try:
+                    # Temporarily stop the process to read memory safely
+                    os.kill(self.pid, signal.SIGSTOP)
+                    time.sleep(0.01)  # Brief pause for stop to take effect
+                    
+                    # Read memory data while process is stopped
+                    data = self.libc.ptrace(self.PTRACE_PEEKDATA, self.pid, actual_addr, 0)
+                    
+                    # Continue the process immediately
+                    os.kill(self.pid, signal.SIGCONT)
+                    
+                    if data == -1:
+                        return None
+                    
+                    # Parse based on detected type using ptrace data
+                    if var_type == 'int':
+                        return ctypes.c_int32(data & 0xFFFFFFFF).value
+                    elif var_type == 'float':
+                        # Extract 4 bytes and interpret as float
+                        float_bytes = struct.pack('<Q', data)[:4]
+                        float_val = struct.unpack('<f', float_bytes)[0]
+                        
+                        # Sanity check for reasonable values
+                        import math
+                        if math.isnan(float_val) or math.isinf(float_val) or abs(float_val) > 1e8:
+                            return 0.0  # Return safe default
+                        return float_val
+                    elif var_type == 'bool':
+                        return bool(data & 0xFF)
+                        
+                except Exception as ptrace_error:
+                    print(f"Ptrace fallback failed for {var_info['name']}: {ptrace_error}")
+                    return None
             
-            elif var_type == 'float':
-                # Extract 4 bytes and interpret as float
-                float_bytes = struct.pack('<Q', data)[:4]
-                float_val = struct.unpack('<f', float_bytes)[0]
-                
-                # Sanity check for reasonable values
-                import math
-                if math.isnan(float_val) or math.isinf(float_val) or abs(float_val) > 1e8:
-                    return 0.0  # Return safe default
-                return float_val
-            
-            elif var_type == 'double':
-                # For double, we might need to read 8 bytes
-                double_bytes = struct.pack('<Q', data)
-                double_val = struct.unpack('<d', double_bytes)[0]
-                
-                import math
-                if math.isnan(double_val) or math.isinf(double_val) or abs(double_val) > 1e15:
-                    return 0.0
-                return double_val
-            
-            elif var_type == 'bool':
-                return bool(data & 0x1)
-            
-            else:
-                # Default to int
-                return ctypes.c_int32(data & 0xFFFFFFFF).value
+            # If we get here, both methods failed
+            return None
         
         except Exception as e:
             print(f"Error reading {var_info['name']}: {e}")

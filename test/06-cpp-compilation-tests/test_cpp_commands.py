@@ -10,7 +10,7 @@ import asyncio
 from pathlib import Path
 
 # Add kuksa-syncer to path
-sys.path.insert(0, str(Path(__file__).parent / 'kuksa-syncer'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'kuksa-syncer'))
 
 async def test_cpp_command_handling():
     """Test different possible C++ commands from Kit Server."""
