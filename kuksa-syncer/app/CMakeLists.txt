@@ -4,7 +4,13 @@ project(fcw-advanced VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find packages
+# Debug build for monitoring
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
+# Find required packages
 find_package(Threads REQUIRED)
 
 # Include directories
@@ -24,9 +30,3 @@ add_executable(fcw_system ${SOURCES})
 target_link_libraries(fcw_system 
     Threads::Threads
 )
-
-# Compiler flags for debugging and monitoring
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Debug)
-endif()
