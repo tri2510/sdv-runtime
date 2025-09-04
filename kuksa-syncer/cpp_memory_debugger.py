@@ -24,10 +24,92 @@ monitor = None
 ptrace_monitor = None
 
 async def compile_cpp():
-    """Compile C++ project with debug symbols - no injection needed."""
+    """Compile C++ project with debug symbols - supports both direct G++ and CMake builds."""
     if not APP_DIR.exists():
         return False, 'App directory not found.'
 
+    # Check for CMakeLists.txt first (CMake project)
+    cmake_file = APP_DIR / 'CMakeLists.txt'
+    if cmake_file.exists():
+        print(f"📦 Detected CMake project, using CMake build system", flush=True)
+        return await compile_with_cmake()
+    
+    # Fallback to direct G++ compilation
+    print(f"🔨 Using direct G++ compilation", flush=True)
+    return await compile_with_gcc()
+
+async def compile_with_cmake():
+    """Compile C++ project using CMake build system."""
+    build_dir = APP_DIR / 'build'
+    
+    # Clean and recreate build directory to avoid cache conflicts
+    if build_dir.exists():
+        import shutil
+        shutil.rmtree(build_dir)
+        print(f"🧹 Cleaned existing build directory: {build_dir}", flush=True)
+    
+    build_dir.mkdir(exist_ok=True)
+    print(f"📁 Created fresh build directory: {build_dir}", flush=True)
+    
+    all_output = "=== CMake Build Process ===\n"
+    
+    # Step 1: Run cmake configure
+    cmake_cmd = ['cmake', '..', '-DCMAKE_BUILD_TYPE=Debug']
+    print(f"CMake configure command: {' '.join(cmake_cmd)}", flush=True)
+    
+    proc = await asyncio.create_subprocess_exec(
+        *cmake_cmd,
+        cwd=str(build_dir),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    
+    cmake_stdout = stdout.decode().strip()
+    cmake_stderr = stderr.decode().strip()
+    
+    all_output += f"📋 CMake Configure Command: {' '.join(cmake_cmd)}\n"
+    if cmake_stdout:
+        all_output += f"CMake Configure Output:\n{cmake_stdout}\n\n"
+    if cmake_stderr:
+        all_output += f"CMake Configure Warnings/Info:\n{cmake_stderr}\n\n"
+    
+    if proc.returncode != 0:
+        error_msg = f"❌ CMake configuration failed (exit code {proc.returncode})\n{all_output}"
+        return False, error_msg
+    
+    # Step 2: Run cmake build
+    build_cmd = ['cmake', '--build', '.', '--config', 'Debug', '--parallel']
+    print(f"CMake build command: {' '.join(build_cmd)}", flush=True)
+    
+    proc = await asyncio.create_subprocess_exec(
+        *build_cmd,
+        cwd=str(build_dir),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    
+    build_stdout = stdout.decode().strip()
+    build_stderr = stderr.decode().strip()
+    
+    all_output += f"🔨 CMake Build Command: {' '.join(build_cmd)}\n"
+    if build_stdout:
+        all_output += f"CMake Build Output:\n{build_stdout}\n\n"
+    if build_stderr:
+        all_output += f"CMake Build Warnings/Info:\n{build_stderr}\n\n"
+    
+    if proc.returncode != 0:
+        error_msg = f"❌ CMake build failed (exit code {proc.returncode})\n{all_output}"
+        return False, error_msg
+    
+    # Success message
+    success_msg = f"✅ CMake compilation successful with debug symbols\n{all_output}"
+    success_msg += "✅ CMake build completed successfully!"
+    return True, success_msg
+
+async def compile_with_gcc():
+    """Compile C++ project using direct G++ compilation."""
     # Smart file selection - avoid duplicates and prefer src/ directory structure
     cpp_files = []
     
@@ -61,18 +143,73 @@ async def compile_cpp():
     )
     stdout, stderr = await proc.communicate()
     
+    # Decode outputs
+    stdout_text = stdout.decode().strip()
+    stderr_text = stderr.decode().strip()
+    
     if proc.returncode != 0:
-        return False, stderr.decode()
+        # Return detailed compilation error
+        error_msg = f"Compilation failed (exit code {proc.returncode})\n"
+        if stderr_text:
+            error_msg += f"GCC Errors:\n{stderr_text}\n"
+        if stdout_text:
+            error_msg += f"GCC Output:\n{stdout_text}\n"
+        return False, error_msg
+    
+    # Return detailed successful compilation output
+    success_msg = f"✅ Compilation successful with debug symbols\n"
+    success_msg += f"Command: {' '.join(cmd)}\n"
+    
+    if stdout_text:
+        success_msg += f"\nGCC Output:\n{stdout_text}\n"
+    if stderr_text:
+        success_msg += f"\nGCC Warnings/Info:\n{stderr_text}\n"
+    
+    # If no output, show basic info
+    if not stdout_text and not stderr_text:
+        success_msg += "No additional compilation output.\n"
         
-    return True, 'Compiled successfully with debug symbols.'
+    return True, success_msg
+
+def find_executable_binary(app_dir: Path) -> Path:
+    """Find the executable binary, handling both simple builds and CMake builds."""
+    # Check for simple build (main_bin)
+    simple_binary = app_dir / 'main_bin'
+    if simple_binary.exists() and simple_binary.is_file():
+        return simple_binary
+    
+    # Check for CMake build directory
+    cmake_build_dir = app_dir / 'build'
+    if cmake_build_dir.exists() and cmake_build_dir.is_dir():
+        # Look for executable files in build directory
+        for file_path in cmake_build_dir.glob('*'):
+            if file_path.is_file() and os.access(file_path, os.X_OK):
+                # Check if it's an ELF binary by looking for executable bit and reasonable size
+                if file_path.stat().st_size > 1000:  # At least 1KB
+                    print(f"🔍 Found CMake binary: {file_path}")
+                    return file_path
+    
+    # Check for direct executable in app directory (other build systems)
+    for file_path in app_dir.glob('*'):
+        if file_path.is_file() and os.access(file_path, os.X_OK) and file_path.name != 'main_bin':
+            if file_path.stat().st_size > 1000:
+                print(f"🔍 Found executable: {file_path}")
+                return file_path
+    
+    # Fallback to original
+    return simple_binary
 
 async def run_binary():
-    """Run the compiled binary - pure execution."""
-    if not os.path.exists(BINARY_FILE):
-        return None, None, 'Binary not found.'
+    """Run the compiled binary - handles both G++ and CMake builds."""
+    # Find the actual binary using smart detection
+    actual_binary = find_executable_binary(APP_DIR)
     
+    if not actual_binary.exists():
+        return None, None, f'Binary not found. Looked for: {actual_binary}'
+    
+    print(f"🚀 Found executable binary: {actual_binary}")
     # Just return the binary path - memory monitor will handle execution
-    return str(BINARY_FILE), None, 'Ready to run with memory monitoring.'
+    return str(actual_binary), None, f'Ready to run with memory monitoring: {actual_binary.name}'
 
 async def start_memory_monitoring(watch_vars_str: str, callback=None):
     """Start high-performance ptrace-based memory monitoring."""

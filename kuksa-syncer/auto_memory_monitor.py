@@ -220,11 +220,32 @@ async def start_auto_monitoring(watch_vars_str: str = "") -> tuple:
     global auto_monitor
     
     try:
-        # Step 1: Read C++ source code
-        cpp_file = APP_DIR / "main.cpp"
-        if not cpp_file.exists():
-            return ("error", "C++ source file not found")
+        # Step 1: Read C++ source code - try multiple locations
+        cpp_code = ""
+        cpp_file = None
         
+        # Try multiple possible locations for the main C++ file
+        possible_locations = [
+            APP_DIR / "main.cpp",           # Direct in app/
+            APP_DIR / "src" / "main.cpp",   # CMake style src/main.cpp
+            APP_DIR,                        # Scan entire directory
+        ]
+        
+        for location in possible_locations:
+            if location.is_file():
+                cpp_file = location
+                break
+            elif location.is_dir():
+                # Search for .cpp files in the directory
+                cpp_files = list(location.glob("**/*.cpp"))
+                if cpp_files:
+                    cpp_file = cpp_files[0]  # Use first found .cpp file
+                    break
+        
+        if not cpp_file:
+            return ("error", f"C++ source file not found in {APP_DIR}")
+        
+        print(f"📄 Found C++ source file: {cpp_file}", flush=True)
         with open(cpp_file, 'r') as f:
             cpp_code = f.read()
         
@@ -305,7 +326,8 @@ async def send_console_output(socketio, kit_id, message):
 async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str, 
                                      monitoring_interval=0.1, 
                                      max_duration_seconds=300,
-                                     max_reports=10000):
+                                     max_reports=10000,
+                                     completion_callback=None):
     """Generate periodic memory variable reports using auto-detection.
     
     Args:
@@ -350,12 +372,24 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str,
         
         print(f"✅ Auto-monitoring setup: {msg}")
         
+        # Verify auto_monitor was properly initialized
+        if not auto_monitor or not auto_monitor.process:
+            print("❌ Auto-monitoring setup incomplete - monitor or process is None")
+            await socketio.emit('messageToKit-kitReply', {
+                'kit_id': CLIENT_ID,
+                'request_from': kit_id,
+                'cmd': 'trace_vars',
+                'data': {"error": "Monitor initialization failed"},
+                'isDone': True,
+                'isError': True
+            })
+            return
+        
         # Set up stdout forwarding for the existing monitor
-        if auto_monitor and auto_monitor.process:
-            auto_monitor.set_console_forwarding(socketio, kit_id, asyncio.get_event_loop())
-            # Send setup status to console
-            await send_console_output(socketio, kit_id, f"✅ {msg}\r\n")
-            await send_console_output(socketio, kit_id, f"📊 Config: interval={MONITORING_INTERVAL}s, max_duration={MAX_DURATION_SECONDS}s\r\n")
+        auto_monitor.set_console_forwarding(socketio, kit_id, asyncio.get_event_loop())
+        # Send setup status to console
+        await send_console_output(socketio, kit_id, f"✅ {msg}\r\n")
+        await send_console_output(socketio, kit_id, f"📊 Config: interval={MONITORING_INTERVAL}s, max_duration={MAX_DURATION_SECONDS}s\r\n")
         
         # Monitoring loop with configurable timing
         report_count = 0
@@ -365,7 +399,7 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str,
         # Give process time to fully initialize
         await asyncio.sleep(INIT_DELAY)
         
-        while report_count < effective_max_reports and auto_monitor.process.poll() is None:
+        while report_count < effective_max_reports and auto_monitor and auto_monitor.process and auto_monitor.process.poll() is None:
             values, status = await get_auto_variables()
             
             if status == "success" and values and not isinstance(values.get("error"), str):
@@ -413,6 +447,14 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str,
     
     finally:
         cleanup_auto_monitoring()
+        
+        # Execute completion callback if provided (e.g., remove from running list)
+        if completion_callback:
+            try:
+                completion_callback(kit_id)
+                print(f"✅ Completion callback executed for kit {kit_id}")
+            except Exception as e:
+                print(f"Error in completion callback: {e}")
 
 # Test function with configurable parameters
 async def test_auto_monitoring(variables="", interval=0.1, duration=300, max_reports=10000):
