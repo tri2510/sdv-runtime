@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 from memory_monitor import ProcessMemoryMonitor, SmartVariableDetector
 from ptrace_memory_reader import MemoryVariableMonitor
+from auto_variable_detector import AutoVariableDetector, SmartMemoryReader
 
 # Import CLIENT_ID from syncer context
 CLIENT_ID = "RunTime-TriCPP"
