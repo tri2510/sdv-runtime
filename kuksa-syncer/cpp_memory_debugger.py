@@ -393,6 +393,10 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
     import os
     import fcntl
     
+    # Initialize buffers outside try block so they're accessible in finally
+    stdout_buffer = ""
+    stderr_buffer = ""
+    
     try:
         # Get process stdout/stderr file descriptors
         process_stdout = ptrace_monitor.process.stdout
@@ -409,45 +413,59 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
         lines_read = 0
         
         while ptrace_monitor.process.poll() is None:  # Check if process is still running
-            # First: Check for stdout output using select with timeout
-            if process_stdout:
-                ready, _, _ = select.select([fd_stdout], [], [], 0.1)  # 0.1 second timeout
+            # Read stdout/stderr from the C++ process and forward to kit server
+            try:
+                # Check if there's data available for reading
+                ready, _, _ = select.select([ptrace_monitor.process.stdout, ptrace_monitor.process.stderr], [], [], 0.1)
                 
-                if ready:
-                    try:
-                        # Read available stdout data line by line (limit to avoid blocking)
-                        lines_this_cycle = 0
-                        while lines_this_cycle < 10:  # Max 10 lines per cycle to avoid blocking
-                            line = process_stdout.readline()
-                            if not line:
-                                break
-                                
-                            line = line.rstrip()
-                            if line:  # Only send non-empty lines
-                                lines_read += 1
-                                print(f"🔥 Captured stdout line {lines_read}: {line}")
-                                
-                                # Forward stdout to Kit server using exact same format as syncer send_reply
-                                await socketio.emit('messageToKit-kitReply', {
-                                    'kit_id': CLIENT_ID,
-                                    'request_from': kit_id,
-                                    'cmd': 'run_cpp_app',
-                                    'data': line,
-                                    'result': line,
-                                    'isError': False,
-                                    'isDone': False,
-                                    'code': 0
-                                })
-                                
-                            lines_this_cycle += 1
-                            
-                    except (IOError, OSError) as e:
-                        # Handle potential I/O errors gracefully
-                        if e.errno not in [11, 35]:  # EAGAIN/EWOULDBLOCK
-                            print(f"🔥 Stdout read error: {e}")
-                        break
+                for stream in ready:
+                    if stream == ptrace_monitor.process.stdout:
+                        chunk = stream.read(1024)
+                        if chunk:
+                            stdout_buffer += chunk
+                            # Send stdout lines to kit server
+                            while '\n' in stdout_buffer:
+                                line, stdout_buffer = stdout_buffer.split('\n', 1)
+                                if line.strip():  # Only send non-empty lines
+                                    lines_read += 1
+                                    print(f"🔥 Captured stdout line {lines_read}: {line}")
+                                    await socketio.emit('messageToKit-kitReply', {
+                                        'kit_id': CLIENT_ID,
+                                        'request_from': kit_id,
+                                        'cmd': 'run_cpp_app',
+                                        'data': line,
+                                        'result': line,
+                                        'isError': False,
+                                        'isDone': False,
+                                        'code': 0
+                                    })
+                    
+                    elif stream == ptrace_monitor.process.stderr:
+                        chunk = stream.read(1024)
+                        if chunk:
+                            stderr_buffer += chunk
+                            # Send stderr lines to kit server
+                            while '\n' in stderr_buffer:
+                                line, stderr_buffer = stderr_buffer.split('\n', 1)
+                                if line.strip():  # Only send non-empty lines
+                                    lines_read += 1
+                                    print(f"🔥 Captured stderr line {lines_read}: {line}")
+                                    await socketio.emit('messageToKit-kitReply', {
+                                        'kit_id': CLIENT_ID,
+                                        'request_from': kit_id,
+                                        'cmd': 'run_cpp_app',
+                                        'data': f"[STDERR] {line}",
+                                        'result': f"[STDERR] {line}",
+                                        'isError': False,
+                                        'isDone': False,
+                                        'code': 0
+                                    })
+                                    
+            except Exception as stdout_error:
+                # Don't let stdout reading errors break the monitoring
+                print(f"🔥 Stdout/stderr read error: {stdout_error}")
             
-            # Second: Monitor variables (existing functionality)
+            # Get memory variables
             values, status = await get_global_variables(watch_vars_str)
             
             if isinstance(values, dict) and "error" not in values and values:
@@ -473,6 +491,53 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
         traceback.print_exc()
     finally:
         print(f"🔥 Stopping memory monitoring - captured {lines_read} stdout lines")
+        
+        # Flush any remaining stdout/stderr content
+        try:
+            if ptrace_monitor and ptrace_monitor.process and ptrace_monitor.process.stdout and ptrace_monitor.process.stderr:
+                import select
+                # Final read of any remaining output with short timeout
+                ready, _, _ = select.select([ptrace_monitor.process.stdout, ptrace_monitor.process.stderr], [], [], 0.1)
+                
+                for stream in ready:
+                    try:
+                        if stream == ptrace_monitor.process.stdout:
+                            remaining_data = stream.read()
+                            if remaining_data and remaining_data.strip():
+                                # Send any remaining stdout buffer + final data
+                                final_stdout = stdout_buffer + remaining_data
+                                for line in final_stdout.strip().split('\n'):
+                                    if line.strip():
+                                        await socketio.emit('messageToKit-kitReply', {
+                                            'kit_id': CLIENT_ID,
+                                            'request_from': kit_id,
+                                            'cmd': 'run_cpp_app',
+                                            'data': line,
+                                            'isDone': False,
+                                            'code': 0
+                                        })
+                        
+                        elif stream == ptrace_monitor.process.stderr:
+                            remaining_data = stream.read()
+                            if remaining_data and remaining_data.strip():
+                                # Send any remaining stderr buffer + final data
+                                final_stderr = stderr_buffer + remaining_data
+                                for line in final_stderr.strip().split('\n'):
+                                    if line.strip():
+                                        await socketio.emit('messageToKit-kitReply', {
+                                            'kit_id': CLIENT_ID,
+                                            'request_from': kit_id,
+                                            'cmd': 'run_cpp_app',
+                                            'data': f"[STDERR] {line}",
+                                            'isDone': False,
+                                            'code': 0
+                                        })
+                    except:
+                        # Ignore errors in final cleanup
+                        pass
+                        
+        except Exception as flush_error:
+            print(f"Error flushing final output: {flush_error}")
         
         # Send final completion status to frontend
         await socketio.emit('messageToKit-kitReply', {
