@@ -173,7 +173,8 @@ class SmartMemoryReader:
                 time.sleep(0.2)  # Give more time for attach
                 
                 # Continue the process after attaching
-                self.libc.ptrace(self.PTRACE_CONT := 7, self.pid, 0, 0)
+                PTRACE_CONT = 7
+                self.libc.ptrace(PTRACE_CONT, self.pid, 0, 0)
                 return True
         except Exception as e:
             print(f"Failed to attach to PID {self.pid}: {e}")
