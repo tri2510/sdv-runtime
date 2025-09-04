@@ -195,8 +195,22 @@ class SmartMemoryReader:
                 lines = f.readlines()
                 print(f"   📄 Looking for data section in {len(lines)} memory map entries")
                 
+                # First pass: look for the main executable binary name in maps
+                binary_name = None
+                for line in lines:
+                    if 'r-xp' in line and '/' in line:  # Executable section with path
+                        parts = line.split()
+                        if len(parts) >= 6:
+                            path = parts[5]
+                            if 'main_bin' in path or 'autonomous_vehicle_system' in path or 'app' in path:
+                                binary_name = Path(path).name
+                                break
+                
+                print(f"   🔍 Detected binary name: {binary_name}")
+                
+                # Second pass: find data section for this binary
                 for i, line in enumerate(lines):
-                    if 'main_bin' in line and 'rw-p' in line:  # Read-write section = data/bss
+                    if 'rw-p' in line and (binary_name and binary_name in line):
                         parts = line.split()
                         if len(parts) >= 6:
                             addr_range = parts[0]
@@ -207,15 +221,53 @@ class SmartMemoryReader:
                             
                             print(f"   📍 Data section: 0x{data_addr:x} ({permissions}) file_offset={file_offset}")
                             
-                            # The data section virtual address in ELF starts at 0x4000
-                            # So we need: actual_address = data_section_base + (symbol_addr - 0x4000)  
-                            elf_data_start = 0x4000
+                            # Dynamically detect ELF data section start address using readelf
+                            elf_data_start = self._get_elf_data_start(binary_name)
+                            if not elf_data_start:
+                                elf_data_start = 0x4000  # Default fallback for simple g++ binaries
+                            
                             print(f"   🏠 Data section base: 0x{data_addr:x}, ELF data starts at 0x{elf_data_start:x}")
                             return data_addr - elf_data_start  # This will be our "base" for calculations
                             
         except Exception as e:
             print(f"Error getting data section address: {e}")
         return None
+    
+    def _get_elf_data_start(self, binary_name: str) -> Optional[int]:
+        """Get ELF data section start address using readelf."""
+        try:
+            # Find the binary path from the running process maps
+            with open(f'/proc/{self.pid}/maps', 'r') as f:
+                for line in f:
+                    if binary_name in line and 'r-xp' in line:
+                        parts = line.split()
+                        if len(parts) >= 6:
+                            binary_path = parts[5]
+                            break
+                else:
+                    print(f"   ❌ Could not find binary path for {binary_name}")
+                    return None
+            
+            # Use readelf to get data section address
+            result = subprocess.run(['readelf', '-S', binary_path], 
+                                  capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                for line in result.stdout.split('\n'):
+                    if '.data' in line and 'PROGBITS' in line:
+                        parts = line.split()
+                        for part in parts:
+                            if part.startswith('00000000'):  # ELF address format
+                                addr = int(part, 16)
+                                print(f"   🔧 Detected ELF .data start: 0x{addr:x}")
+                                return addr
+            
+            print(f"   ❌ Could not detect ELF data start for {binary_path}")
+            return None
+            
+        except Exception as e:
+            print(f"   ❌ Error detecting ELF data start: {e}")
+            return None
     
     def get_process_base_address(self) -> Optional[int]:
         """Get base address for variable calculations."""

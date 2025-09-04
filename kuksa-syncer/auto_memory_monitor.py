@@ -8,6 +8,7 @@ import os
 import subprocess
 import asyncio
 import time
+import argparse
 from pathlib import Path
 from auto_variable_detector import AutoVariableDetector, SmartMemoryReader
 
@@ -15,6 +16,34 @@ from auto_variable_detector import AutoVariableDetector, SmartMemoryReader
 APP_DIR = Path(os.path.dirname(__file__)) / 'app'
 BINARY_FILE = APP_DIR / 'main_bin'
 CLIENT_ID = "RunTime-TriCPP"
+
+def find_executable_binary(app_dir: Path) -> Path:
+    """Find the executable binary, handling both simple builds and CMake builds."""
+    # Check for simple build (main_bin)
+    simple_binary = app_dir / 'main_bin'
+    if simple_binary.exists() and simple_binary.is_file():
+        return simple_binary
+    
+    # Check for CMake build directory
+    cmake_build_dir = app_dir / 'build'
+    if cmake_build_dir.exists() and cmake_build_dir.is_dir():
+        # Look for executable files in build directory
+        for file_path in cmake_build_dir.glob('*'):
+            if file_path.is_file() and os.access(file_path, os.X_OK):
+                # Check if it's an ELF binary by looking for executable bit and reasonable size
+                if file_path.stat().st_size > 1000:  # At least 1KB
+                    print(f"🔍 Found CMake binary: {file_path}")
+                    return file_path
+    
+    # Check for direct executable in app directory (other build systems)
+    for file_path in app_dir.glob('*'):
+        if file_path.is_file() and os.access(file_path, os.X_OK) and file_path.name != 'main_bin':
+            if file_path.stat().st_size > 1000:
+                print(f"🔍 Found executable: {file_path}")
+                return file_path
+    
+    # Fallback to original
+    return simple_binary
 
 class AutoMemoryMonitor:
     """Automatic memory monitoring system."""
@@ -73,8 +102,10 @@ class AutoMemoryMonitor:
     def start_process(self) -> bool:
         """Start the C++ process for monitoring."""
         try:
-            print(f"🚀 Starting C++ binary: {BINARY_FILE}")
-            self.process = subprocess.Popen([str(BINARY_FILE)], 
+            # Find the actual binary (handles CMake builds)
+            actual_binary = find_executable_binary(APP_DIR)
+            print(f"🚀 Starting C++ binary: {actual_binary}")
+            self.process = subprocess.Popen([str(actual_binary)], 
                                          stdout=subprocess.PIPE, 
                                          stderr=subprocess.PIPE)
             
@@ -141,8 +172,9 @@ async def start_auto_monitoring(watch_vars_str: str = "") -> tuple:
         # Step 2: Initialize monitor
         auto_monitor = AutoMemoryMonitor()
         
-        # Step 3: Discover variables
-        if not auto_monitor.discover_variables(cpp_code, str(BINARY_FILE)):
+        # Step 3: Discover variables (use dynamic binary detection)
+        actual_binary = find_executable_binary(APP_DIR)
+        if not auto_monitor.discover_variables(cpp_code, str(actual_binary)):
             return ("error", "No variables discovered in C++ code")
         
         # Step 4: Filter to requested variables
@@ -191,11 +223,35 @@ def cleanup_auto_monitoring():
         auto_monitor = None
         print("Auto-monitoring cleanup completed")
 
-async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str):
-    """Generate periodic memory variable reports using auto-detection."""
+async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str, 
+                                     monitoring_interval=0.1, 
+                                     max_duration_seconds=300,
+                                     max_reports=10000):
+    """Generate periodic memory variable reports using auto-detection.
+    
+    Args:
+        socketio: Socket.IO instance for communication
+        kit_id: Kit identifier for messaging
+        watch_vars_str: Comma-separated list of variables to watch
+        monitoring_interval: Time between reads in seconds (default: 0.1s for real-time)
+        max_duration_seconds: Maximum monitoring duration in seconds (default: 300s = 5 minutes)
+        max_reports: Maximum number of reports to send (default: 10000)
+    """
     global auto_monitor
     
+    # Configuration macros - easy to customize
+    MONITORING_INTERVAL = monitoring_interval  # 0.1s for real-time, 1s for normal, 2s for conservative
+    MAX_DURATION_SECONDS = max_duration_seconds  # 5 minutes default
+    MAX_REPORTS = max_reports  # 10000 reports max
+    MAX_FAILED_READS = 5  # Allow more failures before stopping
+    INIT_DELAY = 2  # Initial delay for process startup
+    
+    # Calculate effective max reports based on duration and interval
+    duration_based_reports = int(MAX_DURATION_SECONDS / MONITORING_INTERVAL)
+    effective_max_reports = min(MAX_REPORTS, duration_based_reports)
+    
     print(f"🎯 Starting automatic variable monitoring for kit {kit_id}")
+    print(f"📊 Config: interval={MONITORING_INTERVAL}s, max_duration={MAX_DURATION_SECONDS}s, max_reports={effective_max_reports}")
     
     try:
         # Start auto-monitoring
@@ -215,16 +271,15 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str):
         
         print(f"✅ Auto-monitoring setup: {msg}")
         
-        # Monitoring loop with conservative timing to avoid killing process
+        # Monitoring loop with configurable timing
         report_count = 0
-        max_reports = 60  # Reduced from 300 to 60 reports (1 minute)
         failed_reads = 0
-        max_failed_reads = 3
+        start_time = time.time()
         
         # Give process time to fully initialize
-        await asyncio.sleep(2)
+        await asyncio.sleep(INIT_DELAY)
         
-        while report_count < max_reports and auto_monitor.process.poll() is None:
+        while report_count < effective_max_reports and auto_monitor.process.poll() is None:
             values, status = await get_auto_variables()
             
             if status == "success" and values and not isinstance(values.get("error"), str):
@@ -246,16 +301,24 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str):
             
             elif "error" in values:
                 failed_reads += 1
-                print(f"Variable read error ({failed_reads}/{max_failed_reads}): {values['error']}")
+                print(f"Variable read error ({failed_reads}/{MAX_FAILED_READS}): {values['error']}")
                 
-                if failed_reads >= max_failed_reads:
+                if failed_reads >= MAX_FAILED_READS:
                     print(f"Too many consecutive failures ({failed_reads}), stopping monitoring")
                     break
             
-            # Conservative 2-second intervals to reduce ptrace pressure
-            await asyncio.sleep(2)
+            # Check if max duration exceeded
+            elapsed_time = time.time() - start_time
+            if elapsed_time >= MAX_DURATION_SECONDS:
+                print(f"⏱️ Max duration reached ({MAX_DURATION_SECONDS}s), stopping monitoring")
+                break
+            
+            # Configurable monitoring interval
+            await asyncio.sleep(MONITORING_INTERVAL)
         
-        print(f"Auto-monitoring completed after {report_count} reports")
+        # Final statistics
+        final_time = time.time() - start_time
+        print(f"Auto-monitoring completed: {report_count} reports in {final_time:.1f}s")
         
     except Exception as e:
         print(f"Error in auto memory monitoring: {e}")
@@ -265,22 +328,101 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str):
     finally:
         cleanup_auto_monitoring()
 
-# Test function
-async def test_auto_monitoring():
-    """Test the automatic monitoring system."""
-    print("=== Testing Automatic Memory Monitoring ===")
+# Test function with configurable parameters
+async def test_auto_monitoring(variables="", interval=0.1, duration=300, max_reports=10000):
+    """Test the automatic monitoring system with configurable parameters.
     
-    result, msg = await start_auto_monitoring("ego_speed,current_lane")
+    Args:
+        variables: Comma-separated list of variables to monitor (empty = all)
+        interval: Monitoring interval in seconds
+        duration: Max monitoring duration in seconds
+        max_reports: Maximum number of reports
+    """
+    print("=== Testing Automatic Memory Monitoring ===")
+    print(f"Configuration: interval={interval}s, duration={duration}s, max_reports={max_reports}")
+    
+    # Use provided variables or default ones
+    watch_vars = variables if variables else "ego_speed,current_lane,tri_value"
+    
+    result, msg = await start_auto_monitoring(watch_vars)
     print(f"Setup result: {result} - {msg}")
     
     if "success" in result:
-        # Test a few reads
-        for i in range(5):
+        # Calculate how many reads to do based on duration and interval
+        num_reads = min(int(duration / interval), max_reports, 100)  # Cap at 100 for test
+        
+        print(f"Performing {num_reads} test reads...")
+        for i in range(num_reads):
             values, status = await get_auto_variables()
             print(f"Read {i+1}: {values} (status: {status})")
-            await asyncio.sleep(1)
+            await asyncio.sleep(interval)
+            
+            # Stop if process died
+            if status == "error" and "exited" in str(values.get("error", "")):
+                print("Process exited, stopping test")
+                break
     
     cleanup_auto_monitoring()
+    print("=== Test completed ===")
+
+def parse_arguments():
+    """Parse command-line arguments for monitoring configuration."""
+    parser = argparse.ArgumentParser(
+        description='Automatic C++ Memory Monitoring System',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    
+    parser.add_argument(
+        '--interval', '-i',
+        type=float,
+        default=0.1,
+        help='Monitoring interval in seconds (e.g., 0.1 for real-time, 1 for normal, 2 for conservative)'
+    )
+    
+    parser.add_argument(
+        '--duration', '-d',
+        type=float,
+        default=300,
+        help='Maximum monitoring duration in seconds'
+    )
+    
+    parser.add_argument(
+        '--max-reports', '-m',
+        type=int,
+        default=10000,
+        help='Maximum number of reports to generate'
+    )
+    
+    parser.add_argument(
+        '--variables', '-v',
+        type=str,
+        default="",
+        help='Comma-separated list of variables to monitor (empty = monitor all)'
+    )
+    
+    parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Enable verbose output for debugging'
+    )
+    
+    return parser.parse_args()
 
 if __name__ == "__main__":
-    asyncio.run(test_auto_monitoring())
+    args = parse_arguments()
+    
+    # Print configuration if verbose
+    if args.verbose:
+        print("🔧 Monitoring Configuration:")
+        print(f"   Interval: {args.interval}s")
+        print(f"   Duration: {args.duration}s")
+        print(f"   Max Reports: {args.max_reports}")
+        print(f"   Variables: {args.variables if args.variables else 'All detected variables'}")
+    
+    # Run the monitoring test with provided arguments
+    asyncio.run(test_auto_monitoring(
+        variables=args.variables,
+        interval=args.interval,
+        duration=args.duration,
+        max_reports=args.max_reports
+    ))
