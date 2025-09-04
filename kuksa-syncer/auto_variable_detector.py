@@ -19,11 +19,35 @@ class AutoVariableDetector:
     
     def __init__(self):
         self.variable_patterns = {
-            # Pattern: (regex, expected_type, size_bytes)
+            # Basic atomic types
             'atomic_int': (r'std::atomic<int>\s+(\w+)', 'int', 4),
             'atomic_float': (r'std::atomic<float>\s+(\w+)', 'float', 4), 
             'atomic_double': (r'std::atomic<double>\s+(\w+)', 'double', 8),
             'atomic_bool': (r'std::atomic<bool>\s+(\w+)', 'bool', 1),
+            
+            # Extended atomic integer types
+            'atomic_int8_t': (r'std::atomic<int8_t>\s+(\w+)', 'int8_t', 1),
+            'atomic_int16_t': (r'std::atomic<int16_t>\s+(\w+)', 'int16_t', 2),
+            'atomic_int32_t': (r'std::atomic<int32_t>\s+(\w+)', 'int32_t', 4),
+            'atomic_int64_t': (r'std::atomic<int64_t>\s+(\w+)', 'int64_t', 8),
+            
+            # Unsigned atomic integer types
+            'atomic_uint8_t': (r'std::atomic<uint8_t>\s+(\w+)', 'uint8_t', 1),
+            'atomic_uint16_t': (r'std::atomic<uint16_t>\s+(\w+)', 'uint16_t', 2),
+            'atomic_uint32_t': (r'std::atomic<uint32_t>\s+(\w+)', 'uint32_t', 4),
+            'atomic_uint64_t': (r'std::atomic<uint64_t>\s+(\w+)', 'uint64_t', 8),
+            
+            # Character atomic types
+            'atomic_char': (r'std::atomic<char>\s+(\w+)', 'char', 1),
+            'atomic_signed_char': (r'std::atomic<signed char>\s+(\w+)', 'signed_char', 1),
+            'atomic_unsigned_char': (r'std::atomic<unsigned char>\s+(\w+)', 'unsigned_char', 1),
+            
+            # System atomic types
+            'atomic_size_t': (r'std::atomic<size_t>\s+(\w+)', 'size_t', 8),  # Usually 8 bytes on 64-bit
+            'atomic_intptr_t': (r'std::atomic<intptr_t>\s+(\w+)', 'intptr_t', 8),
+            'atomic_uintptr_t': (r'std::atomic<uintptr_t>\s+(\w+)', 'uintptr_t', 8),
+            
+            # Regular (non-atomic) types for completeness
             'int_var': (r'\bint\s+(\w+)', 'int', 4),
             'float_var': (r'\bfloat\s+(\w+)', 'float', 4),
             'double_var': (r'\bdouble\s+(\w+)', 'double', 8),
