@@ -209,9 +209,7 @@ def wait_for_databroker_ready(max_attempts=10, sleep_time=0.5):
 
 @sio.event
 async def messageToKit(data):
-    print("SYNCER: Command received from server", flush=True)
-    print(f"Command: {data.get('cmd', 'UNKNOWN')}", flush=True)
-    print(f"Full data: {data}", flush=True)
+    print(f"SYNCER: Command '{data.get('cmd', 'UNKNOWN')}' received", flush=True)
     if data["cmd"] in ("deploy_request", "deploy-request"):
         print("Receive deploy_request...")
         request_from = data["request_from"]
@@ -564,8 +562,9 @@ async def messageToKit(data):
                         print(f"Starting C++ memory monitoring task for variables: {watch_vars}")
                         await send_reply(from_id, f"Monitoring variables: {watch_vars}\r\n", is_done=False, retcode=0, cmd=data["cmd"])
                         
-                        # Start the memory monitoring task asynchronously
-                        asyncio.create_task(cpp_debugger_util.periodic_memory_var_report(sio, from_id, watch_vars))
+                        # Start the automatic memory monitoring task
+                        from auto_memory_monitor import periodic_auto_memory_report
+                        asyncio.create_task(periodic_auto_memory_report(sio, from_id, watch_vars))
                         
                         # Don't send completion immediately - let the monitoring task handle completion
                         print(f"C++ memory monitoring task started for {from_id} via command {data['cmd']}")
@@ -792,9 +791,12 @@ def restartMockProvider():
 def appendMockSignal(signals):
     if signals is None or len(signals) <=0:
         return 0
-    hasNew = False
-    with KClient(BORKER_IP, BROKER_PORT) as kclient:
-        with open(mock_signal_path,'r+') as f:
+    
+    # Skip KUKSA operations if not available
+    try:
+        hasNew = False
+        with KClient(BORKER_IP, BROKER_PORT) as kclient:
+            with open(mock_signal_path,'r+') as f:
             content = f.read()
             # print(f"mock file content")
             if len(content) == 0 :

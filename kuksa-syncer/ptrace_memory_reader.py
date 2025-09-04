@@ -178,7 +178,7 @@ class MemoryVariableMonitor:
             # Show relevant variables
             relevant_vars = []
             for name, addr in self.symbol_table.items():
-                if any(var in name for var in ['ego_speed', 'collision_risk', 'current_lane', 'warning_active', 'brake_pressure']):
+                if any(var in name for var in ['ego_speed', 'collision_risk', 'current_lane', 'steering_angle', 'warning_active', 'brake_pressure']):
                     relevant_vars.append((name, addr))
                     print(f"  {name}: 0x{addr:x}")
             
@@ -346,9 +346,18 @@ class MemoryVariableMonitor:
                 results[var_name] = value
         
         if results:
-            print(f"Memory read: {results}")
+            # Only print every 5th read to reduce spam
+            if not hasattr(self, 'read_count'):
+                self.read_count = 0
+            self.read_count += 1
+            if self.read_count % 5 == 0:
+                print(f"[Read #{self.read_count}] Memory: {results}")
         else:
-            print("Memory read: No variables available")
+            if not hasattr(self, 'read_count'):
+                self.read_count = 0
+            self.read_count += 1
+            if self.read_count % 10 == 0:
+                print(f"[Read #{self.read_count}] Memory: No variables available")
                 
         return results
     
