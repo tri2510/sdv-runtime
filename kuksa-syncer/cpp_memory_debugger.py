@@ -151,6 +151,14 @@ def cleanup_memory_monitor():
     if ptrace_monitor:
         ptrace_monitor.cleanup()
         ptrace_monitor = None
+    
+    # Also cleanup auto memory monitor
+    try:
+        from auto_memory_monitor import cleanup_auto_monitoring
+        cleanup_auto_monitoring()
+        print("Auto memory monitor cleaned up")
+    except Exception as e:
+        print(f"Error cleaning up auto memory monitor: {e}")
 
 async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_reply_func=None):
     """Send periodic variable reports via ptrace memory inspection."""

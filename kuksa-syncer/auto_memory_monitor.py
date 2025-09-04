@@ -9,6 +9,7 @@ import subprocess
 import asyncio
 import time
 import argparse
+import threading
 from pathlib import Path
 from auto_variable_detector import AutoVariableDetector, SmartMemoryReader
 
@@ -53,6 +54,8 @@ class AutoMemoryMonitor:
         self.memory_reader = None
         self.process = None
         self.monitorable_vars = []
+        self.socketio = None
+        self.kit_id = None
     
     def discover_variables(self, cpp_code: str, binary_path: str) -> bool:
         """Discover all monitorable variables automatically."""
@@ -114,6 +117,45 @@ class AutoMemoryMonitor:
         
         return filtered
     
+    def set_console_forwarding(self, socketio, kit_id, event_loop=None):
+        """Set up console output forwarding to kit server."""
+        self.socketio = socketio
+        self.kit_id = kit_id
+        self.event_loop = event_loop or asyncio.get_event_loop()
+        
+        # Start stdout forwarding thread if process is already running
+        if self.process and self.process.stdout:
+            stdout_thread = threading.Thread(target=self._forward_stdout, daemon=True)
+            stdout_thread.start()
+            print("📺 Console output forwarding enabled for existing process")
+    
+    def _forward_stdout(self):
+        """Thread function to forward stdout to kit server console."""
+        if not self.process or not self.socketio or not self.kit_id:
+            return
+        
+        try:
+            # Use the event loop passed from the main thread
+            loop = getattr(self, 'event_loop', None)
+            if not loop:
+                return
+            
+            while self.process.poll() is None:
+                try:
+                    line = self.process.stdout.readline()
+                    if line:
+                        # Send line to console asynchronously
+                        asyncio.run_coroutine_threadsafe(
+                            send_console_output(self.socketio, self.kit_id, line.strip() + '\r\n'),
+                            loop
+                        )
+                except Exception as readline_error:
+                    # Don't spam errors, just continue
+                    break
+                    
+        except Exception as e:
+            print(f"Error in stdout forwarding thread: {e}")
+    
     def start_process(self) -> bool:
         """Start the C++ process for monitoring."""
         try:
@@ -122,7 +164,9 @@ class AutoMemoryMonitor:
             print(f"🚀 Starting C++ binary: {actual_binary}")
             self.process = subprocess.Popen([str(actual_binary)], 
                                          stdout=subprocess.PIPE, 
-                                         stderr=subprocess.PIPE)
+                                         stderr=subprocess.PIPE,
+                                         universal_newlines=True,
+                                         bufsize=1)
             
             # Wait for process to initialize
             time.sleep(0.5)
@@ -247,6 +291,17 @@ def cleanup_auto_monitoring():
         auto_monitor = None
         print("Auto-monitoring cleanup completed")
 
+async def send_console_output(socketio, kit_id, message):
+    """Send console output to kit server (similar to send_app_run_reply in syncer.py)."""
+    await socketio.emit('messageToKit-kitReply', {
+        'kit_id': CLIENT_ID,
+        'request_from': kit_id,
+        'cmd': 'run_app',
+        'data': message,
+        'isDone': False,
+        'code': 0
+    })
+
 async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str, 
                                      monitoring_interval=0.1, 
                                      max_duration_seconds=300,
@@ -294,6 +349,13 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str,
             return
         
         print(f"✅ Auto-monitoring setup: {msg}")
+        
+        # Set up stdout forwarding for the existing monitor
+        if auto_monitor and auto_monitor.process:
+            auto_monitor.set_console_forwarding(socketio, kit_id, asyncio.get_event_loop())
+            # Send setup status to console
+            await send_console_output(socketio, kit_id, f"✅ {msg}\r\n")
+            await send_console_output(socketio, kit_id, f"📊 Config: interval={MONITORING_INTERVAL}s, max_duration={MAX_DURATION_SECONDS}s\r\n")
         
         # Monitoring loop with configurable timing
         report_count = 0
