@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 # Add kuksa-syncer to path
-sys.path.insert(0, str(Path(__file__).parent / 'kuksa-syncer'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'kuksa-syncer'))
 
 # C++ code from the user
 CPP_CODE = """#include <iostream>

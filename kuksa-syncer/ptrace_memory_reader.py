@@ -70,36 +70,59 @@ class PtraceMemoryReader:
             return None
         
         try:
-            # Temporarily stop the process for memory reading
-            import signal
-            os.kill(self.pid, signal.SIGSTOP)
-            os.waitpid(self.pid, 0)
+            # Check if process is still alive before reading
+            try:
+                os.kill(self.pid, 0)  # Signal 0 checks if process exists
+            except OSError:
+                print(f"Process {self.pid} no longer exists")
+                return None
+            
+            # Temporarily stop the process for memory reading - more gentle approach
+            try:
+                os.kill(self.pid, signal.SIGSTOP)
+                # Wait for stop with timeout
+                pid, status = os.waitpid(self.pid, os.WNOHANG)
+                if pid == 0:
+                    # Process didn't stop immediately, wait a bit more
+                    import time
+                    time.sleep(0.001)  # 1ms
+                    pid, status = os.waitpid(self.pid, os.WNOHANG)
+            except ProcessLookupError:
+                print(f"Process {self.pid} died during SIGSTOP")
+                return None
             
             data = b''
             words_to_read = (size + 7) // 8  # Read in 8-byte chunks
             
             for i in range(words_to_read):
                 addr = address + (i * 8)
+                
+                # Clear errno before ptrace call
+                ctypes.set_errno(0)
                 word = self.libc.ptrace(PTRACE_PEEKDATA, self.pid, addr, None)
                 
                 if word == -1:
                     # Check if it's a real error or just -1 data
                     errno = ctypes.get_errno()
                     if errno != 0:
+                        print(f"ptrace error at 0x{addr:x}: errno {errno}")
                         break
                 
-                # Convert to bytes (little endian)
+                # Convert to bytes (little endian)  
                 word_bytes = struct.pack('<Q', word & 0xFFFFFFFFFFFFFFFF)
                 data += word_bytes
             
-            # Resume the process
+            # Resume the process - critical to always do this
             PTRACE_CONT = 7
-            self.libc.ptrace(PTRACE_CONT, self.pid, None, None)
+            result = self.libc.ptrace(PTRACE_CONT, self.pid, None, None)
+            if result == -1:
+                print(f"Warning: Failed to resume process {self.pid}")
             
             # Return only the requested number of bytes
             return data[:size] if data else None
             
         except Exception as e:
+            print(f"Memory read exception: {e}")
             # Make sure to resume process even if there's an error
             try:
                 PTRACE_CONT = 7

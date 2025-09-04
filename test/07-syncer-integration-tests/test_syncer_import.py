@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 # Add kuksa-syncer to path
-sys.path.insert(0, str(Path(__file__).parent / 'kuksa-syncer'))
+sys.path.insert(0, str(Path(__file__).parent.parent / 'kuksa-syncer'))
 
 def test_syncer_functionality():
     """Test that syncer can be imported and used despite missing dependencies."""

@@ -215,9 +215,14 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str):
         
         print(f"✅ Auto-monitoring setup: {msg}")
         
-        # Monitoring loop
+        # Monitoring loop with conservative timing to avoid killing process
         report_count = 0
-        max_reports = 300  # 5 minutes at 1 report/second
+        max_reports = 60  # Reduced from 300 to 60 reports (1 minute)
+        failed_reads = 0
+        max_failed_reads = 3
+        
+        # Give process time to fully initialize
+        await asyncio.sleep(2)
         
         while report_count < max_reports and auto_monitor.process.poll() is None:
             values, status = await get_auto_variables()
@@ -234,16 +239,21 @@ async def periodic_auto_memory_report(socketio, kit_id, watch_vars_str):
                 })
                 
                 report_count += 1
+                failed_reads = 0  # Reset failure counter on success
                 
-                # Reduced logging frequency
-                if report_count % 10 == 0:
-                    print(f"[Auto-Report #{report_count}] Variables: {values}")
+                # Show every successful read for debugging
+                print(f"[Auto-Report #{report_count}] Variables: {values}")
             
             elif "error" in values:
-                print(f"Variable read error: {values['error']}")
-                break
+                failed_reads += 1
+                print(f"Variable read error ({failed_reads}/{max_failed_reads}): {values['error']}")
+                
+                if failed_reads >= max_failed_reads:
+                    print(f"Too many consecutive failures ({failed_reads}), stopping monitoring")
+                    break
             
-            await asyncio.sleep(1)  # 1 second intervals
+            # Conservative 2-second intervals to reduce ptrace pressure
+            await asyncio.sleep(2)
         
         print(f"Auto-monitoring completed after {report_count} reports")
         
