@@ -24,7 +24,7 @@ monitor = None
 ptrace_monitor = None
 
 async def compile_cpp():
-    """Compile C++ project with debug symbols - supports both direct G++ and CMake builds."""
+    """Compile C++ project with debug symbols - supports CMake, Makefile, and direct G++ builds."""
     if not APP_DIR.exists():
         return False, 'App directory not found.'
 
@@ -33,6 +33,12 @@ async def compile_cpp():
     if cmake_file.exists():
         print(f"📦 Detected CMake project, using CMake build system", flush=True)
         return await compile_with_cmake()
+    
+    # Check for Makefile (Makefile project)
+    makefile = APP_DIR / 'Makefile'
+    if makefile.exists():
+        print(f"📦 Detected Makefile project, using Make build system", flush=True)
+        return await compile_with_makefile()
     
     # Fallback to direct G++ compilation
     print(f"🔨 Using direct G++ compilation", flush=True)
@@ -169,6 +175,64 @@ async def compile_with_gcc():
     if not stdout_text and not stderr_text:
         success_msg += "No additional compilation output.\n"
         
+    return True, success_msg
+
+async def compile_with_makefile():
+    """Compile C++ project using Makefile build system."""
+    if not (APP_DIR / 'Makefile').exists():
+        return False, 'Makefile not found'
+    
+    all_output = "=== Makefile Build Process ===\n"
+    
+    # Clean previous builds
+    clean_cmd = ['make', 'clean']
+    print(f"🧹 Cleaning previous build: {' '.join(clean_cmd)}", flush=True)
+    
+    proc = await asyncio.create_subprocess_exec(
+        *clean_cmd,
+        cwd=str(APP_DIR),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    
+    clean_stdout = stdout.decode().strip()
+    clean_stderr = stderr.decode().strip()
+    
+    all_output += f"🧹 Make Clean Command: {' '.join(clean_cmd)}\n"
+    if clean_stdout:
+        all_output += f"Clean Output:\n{clean_stdout}\n\n"
+    if clean_stderr:
+        all_output += f"Clean Messages:\n{clean_stderr}\n\n"
+    
+    # Build the project with debug symbols
+    build_cmd = ['make', 'debug'] if (APP_DIR / 'Makefile').read_text().find('debug:') != -1 else ['make']
+    print(f"🔨 Building with Make: {' '.join(build_cmd)}", flush=True)
+    
+    proc = await asyncio.create_subprocess_exec(
+        *build_cmd,
+        cwd=str(APP_DIR),
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await proc.communicate()
+    
+    build_stdout = stdout.decode().strip()
+    build_stderr = stderr.decode().strip()
+    
+    all_output += f"🔨 Make Build Command: {' '.join(build_cmd)}\n"
+    if build_stdout:
+        all_output += f"Build Output:\n{build_stdout}\n\n"
+    if build_stderr:
+        all_output += f"Build Messages:\n{build_stderr}\n\n"
+    
+    if proc.returncode != 0:
+        error_msg = f"❌ Make build failed (exit code {proc.returncode})\n{all_output}"
+        return False, error_msg
+    
+    # Success message
+    success_msg = f"✅ Makefile compilation successful with debug symbols\n{all_output}"
+    success_msg += "✅ Make build completed successfully!"
     return True, success_msg
 
 def find_executable_binary(app_dir: Path) -> Path:

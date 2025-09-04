@@ -1,0 +1,1 @@
+/usr/bin/c++ -g -O0 -DDEBUG CMakeFiles/multidir_system.dir/main.cpp.o CMakeFiles/multidir_system.dir/engine/engine_controller.cpp.o CMakeFiles/multidir_system.dir/control/vehicle_control.cpp.o CMakeFiles/multidir_system.dir/utils/data_logger.cpp.o -o multidir_system 

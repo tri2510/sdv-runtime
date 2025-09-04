@@ -220,34 +220,50 @@ async def start_auto_monitoring(watch_vars_str: str = "") -> tuple:
     global auto_monitor
     
     try:
-        # Step 1: Read C++ source code - try multiple locations
+        # Step 1: Read C++ source code - scan ALL source files for comprehensive detection
         cpp_code = ""
-        cpp_file = None
+        cpp_files = []
         
-        # Try multiple possible locations for the main C++ file
+        # Try multiple possible locations for C++ files
         possible_locations = [
-            APP_DIR / "main.cpp",           # Direct in app/
+            APP_DIR / "main.cpp",           # Direct main.cpp in app/
             APP_DIR / "src" / "main.cpp",   # CMake style src/main.cpp
-            APP_DIR,                        # Scan entire directory
+            APP_DIR,                        # Scan entire directory tree
         ]
         
+        # Collect all .cpp files from all possible locations
         for location in possible_locations:
-            if location.is_file():
-                cpp_file = location
-                break
+            if location.is_file() and location.suffix == '.cpp':
+                if location not in cpp_files:
+                    cpp_files.append(location)
             elif location.is_dir():
-                # Search for .cpp files in the directory
-                cpp_files = list(location.glob("**/*.cpp"))
-                if cpp_files:
-                    cpp_file = cpp_files[0]  # Use first found .cpp file
-                    break
+                # Search for ALL .cpp files in the directory recursively
+                found_files = list(location.glob("**/*.cpp"))
+                # Filter out build artifacts and CMake generated files
+                filtered_files = [f for f in found_files if not any(excl in str(f) for excl in ['build/', 'CMakeFiles/', 'cmake-build-'])]
+                for file in filtered_files:
+                    if file not in cpp_files:
+                        cpp_files.append(file)
         
-        if not cpp_file:
-            return ("error", f"C++ source file not found in {APP_DIR}")
+        if not cpp_files:
+            return ("error", f"No C++ source files found in {APP_DIR}")
         
-        print(f"📄 Found C++ source file: {cpp_file}", flush=True)
-        with open(cpp_file, 'r') as f:
-            cpp_code = f.read()
+        print(f"📄 Found {len(cpp_files)} C++ source files:", flush=True)
+        for file in cpp_files:
+            rel_path = file.relative_to(APP_DIR) if APP_DIR in file.parents else file
+            print(f"   - {rel_path}", flush=True)
+        
+        # Combine code from all source files for comprehensive variable detection
+        combined_code_parts = []
+        for cpp_file in cpp_files:
+            try:
+                with open(cpp_file, 'r') as f:
+                    file_content = f.read()
+                    combined_code_parts.append(f"// === {cpp_file.name} ===\n{file_content}\n")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not read {cpp_file}: {e}", flush=True)
+        
+        cpp_code = "\n".join(combined_code_parts)
         
         # Step 2: Initialize monitor
         auto_monitor = AutoMemoryMonitor()
