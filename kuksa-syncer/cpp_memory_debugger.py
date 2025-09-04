@@ -279,8 +279,11 @@ async def start_memory_monitoring(watch_vars_str: str, callback=None):
     """Start high-performance ptrace-based memory monitoring."""
     global ptrace_monitor
     
-    if not os.path.exists(BINARY_FILE):
-        return {"error": "Binary not found"}, "Binary not found"
+    # Find the actual executable binary
+    actual_binary = find_executable_binary(APP_DIR)
+    
+    if not actual_binary.exists():
+        return {"error": "Binary not found"}, f"Binary not found: {actual_binary}"
     
     # Parse watch variables with better type detection
     watch_vars = {}
@@ -300,7 +303,7 @@ async def start_memory_monitoring(watch_vars_str: str, callback=None):
                 watch_vars[var_name] = 'int'  # Default
     
     # Start ptrace-based monitor
-    ptrace_monitor = MemoryVariableMonitor(str(BINARY_FILE))
+    ptrace_monitor = MemoryVariableMonitor(str(actual_binary))
     ptrace_monitor.build_symbol_table()
     
     if not ptrace_monitor.start_process():
@@ -362,32 +365,89 @@ def cleanup_memory_monitor():
         print(f"Error cleaning up auto memory monitor: {e}")
 
 async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_reply_func=None):
-    """Send periodic variable reports via ptrace memory inspection."""
+    """Send periodic variable reports and stdout forwarding via ptrace memory inspection with stdout capture."""
     global ptrace_monitor
     
     # Start monitoring if not already active
     if not ptrace_monitor:
-        print(f"Starting ptrace memory monitoring for kit {kit_id}")
+        print(f"🔥 Starting ptrace memory monitoring for kit {kit_id}")
         result, msg = await start_memory_monitoring(watch_vars_str)
         if "error" in result:
-            print(f"Failed to start monitoring: {msg}")
+            print(f"🔥 Failed to start monitoring: {msg}")
             return
     
     if not ptrace_monitor or not ptrace_monitor.process:
-        print("Ptrace memory monitoring not active")
+        print("🔥 Ptrace memory monitoring not active")
         return
     
     # Check if process is still running
     if ptrace_monitor.process.poll() is not None:
-        print(f"Process has exited with code {ptrace_monitor.process.returncode}")
+        print(f"🔥 Process has exited with code {ptrace_monitor.process.returncode}")
         return
     
-    print(f"Starting periodic memory variable reporting for kit {kit_id}")
-    print(f"Variables to monitor: {watch_vars_str}")
+    print(f"🔥 Starting periodic memory variable reporting with stdout capture for kit {kit_id}")
+    print(f"🔥 Variables to monitor: {watch_vars_str}")
+    
+    # Set up stdout capture from the ptrace monitored process
+    import select
+    import os
+    import fcntl
     
     try:
+        # Get process stdout/stderr file descriptors
+        process_stdout = ptrace_monitor.process.stdout
+        process_stderr = ptrace_monitor.process.stderr
+        
+        if process_stdout:
+            # Make stdout non-blocking for select()
+            fd_stdout = process_stdout.fileno()
+            flags = fcntl.fcntl(fd_stdout, fcntl.F_GETFL)
+            fcntl.fcntl(fd_stdout, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+            print(f"🔥 Set up non-blocking stdout capture for PID {ptrace_monitor.process.pid}")
+        
         report_count = 0
+        lines_read = 0
+        
         while ptrace_monitor.process.poll() is None:  # Check if process is still running
+            # First: Check for stdout output using select with timeout
+            if process_stdout:
+                ready, _, _ = select.select([fd_stdout], [], [], 0.1)  # 0.1 second timeout
+                
+                if ready:
+                    try:
+                        # Read available stdout data line by line (limit to avoid blocking)
+                        lines_this_cycle = 0
+                        while lines_this_cycle < 10:  # Max 10 lines per cycle to avoid blocking
+                            line = process_stdout.readline()
+                            if not line:
+                                break
+                                
+                            line = line.rstrip()
+                            if line:  # Only send non-empty lines
+                                lines_read += 1
+                                print(f"🔥 Captured stdout line {lines_read}: {line}")
+                                
+                                # Forward stdout to Kit server using exact same format as syncer send_reply
+                                await socketio.emit('messageToKit-kitReply', {
+                                    'kit_id': CLIENT_ID,
+                                    'request_from': kit_id,
+                                    'cmd': 'run_cpp_app',
+                                    'data': line,
+                                    'result': line,
+                                    'isError': False,
+                                    'isDone': False,
+                                    'code': 0
+                                })
+                                
+                            lines_this_cycle += 1
+                            
+                    except (IOError, OSError) as e:
+                        # Handle potential I/O errors gracefully
+                        if e.errno not in [11, 35]:  # EAGAIN/EWOULDBLOCK
+                            print(f"🔥 Stdout read error: {e}")
+                        break
+            
+            # Second: Monitor variables (existing functionality)
             values, status = await get_global_variables(watch_vars_str)
             
             if isinstance(values, dict) and "error" not in values and values:
@@ -402,25 +462,26 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
                 })
                 
                 report_count += 1
-                if report_count % 10 == 0:  # Log every 10th report to avoid spam
-                    print(f"[Report #{report_count}] Variables: {values}")
+                if report_count % 20 == 0:  # Log every 20th report to reduce spam
+                    print(f"🔥 [Report #{report_count}] Variables: {values}, Stdout lines: {lines_read}")
                     
-            await asyncio.sleep(0.5)  # 500ms for good balance of performance and updates
+            await asyncio.sleep(0.3)  # 300ms for better stdout responsiveness
             
     except Exception as e:
-        print(f"Memory monitoring error: {e}")
+        print(f"🔥 Memory monitoring error: {e}")
         import traceback
         traceback.print_exc()
     finally:
-        print("Stopping memory monitoring")
+        print(f"🔥 Stopping memory monitoring - captured {lines_read} stdout lines")
         
         # Send final completion status to frontend
         await socketio.emit('messageToKit-kitReply', {
             'kit_id': CLIENT_ID,
             'request_from': kit_id,
             'cmd': 'run_cpp_app',  # Use the original command
-            'data': '',
-            'result': 'Memory monitoring completed successfully',
+            'data': f'Memory monitoring completed - {lines_read} stdout lines captured',
+            'result': f'Memory monitoring completed successfully - {lines_read} stdout lines captured',
+            'isError': False,
             'isDone': True,
             'code': 0
         })

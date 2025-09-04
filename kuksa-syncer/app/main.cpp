@@ -75,7 +75,7 @@ public:
         
         // Light levels (natural + artificial)
         std::normal_distribution<float> light_noise(0.0f, 20.0f);
-        float natural_light = 500.0f * std::max(0.0f, std::sin(time_of_day * M_PI));
+        float natural_light = 500.0f * std::max(0.0f, (float)std::sin(time_of_day * M_PI));
         float artificial_light = occupied_hours ? 200.0f : 50.0f;
         light_lux = natural_light + artificial_light + light_noise(gen);
         
