@@ -571,10 +571,34 @@ async def messageToKit(data):
                         print(f"Starting C++ memory monitoring task for variables: {watch_vars}")
                         await send_reply(from_id, f"Monitoring variables: {watch_vars}\r\n", is_done=False, retcode=0, cmd=data["cmd"])
                         
-                        # Start the automatic memory monitoring task
+                        # Create completion callback to remove from running list
+                        def cpp_completion_callback(kit_id):
+                            """Remove C++ app from running list when monitoring completes"""
+                            for runner in list(lsOfRunner):  # Use list() to avoid modification during iteration
+                                if runner.get("request_from") == kit_id and runner.get("type") == "cpp_app":
+                                    lsOfRunner.remove(runner)
+                                    print(f"✅ Removed C++ app from running list for kit {kit_id}")
+                                    break
+                        
+                        # Start the automatic memory monitoring task with completion callback
                         from auto_memory_monitor import periodic_auto_memory_report
-                        task = asyncio.create_task(periodic_auto_memory_report(sio, from_id, watch_vars))
+                        task = asyncio.create_task(periodic_auto_memory_report(
+                            sio, from_id, watch_vars, completion_callback=cpp_completion_callback))
                         monitoring_tasks[from_id] = task
+                        
+                        # Add C++ process to lsOfRunner to show "stop" button in kit server
+                        app_name = data["data"].get("name", "C++ Application")
+                        lsOfRunner.append({
+                            "appName": f"{app_name} (C++)",
+                            "runner": task,  # Use the monitoring task as the runner
+                            "request_from": from_id,
+                            "from": time.time(),
+                            "type": "cpp_app"  # Mark as C++ app for identification
+                        })
+                        
+                        # Ensure stdout forwarding is enabled for this client
+                        print(f"✅ C++ memory monitoring with stdout forwarding started for {from_id}")
+                        print(f"✅ Added C++ app '{app_name}' to running processes list")
                         
                         # Don't send completion immediately - let the monitoring task handle completion
                         print(f"C++ memory monitoring task started for {from_id} via command {data['cmd']}")
@@ -706,18 +730,30 @@ async def messageToKit(data):
             if cpp_stopped:
                 await send_reply(from_id, "C++ processes stopped successfully\r\n", is_done=True, retcode=0)
         
-        # Stop Python processes
+        # Stop Python processes and C++ tasks
         python_stopped = False
-        for runner in lsOfRunner:
+        for runner in list(lsOfRunner):  # Use list() to avoid modification during iteration
             if runner["request_from"] == from_id:
                 proc = runner["runner"]
+                runner_type = runner.get("type", "python")
+                
                 if proc is not None:
                     try:
-                        proc.kill()
+                        if runner_type == "cpp_app":
+                            # For C++ apps, cancel the async task
+                            print(f"Cancelling C++ monitoring task for {from_id}")
+                            proc.cancel()  # Cancel the asyncio Task
+                            await send_reply(from_id, "C++ application stopped\r\n", is_done=True, retcode=0)
+                        else:
+                            # For Python apps, kill the process
+                            proc.kill()
+                        
                         lsOfRunner.remove(runner)
                         python_stopped = True
+                        print(f"✅ Stopped {runner_type} app for client {from_id}")
+                        
                     except Exception as e:
-                        print("Kill proc get error", str(e))
+                        print(f"Error stopping {runner_type} app: {str(e)}")
                         await sio.emit("messageToKit-kitReply", {
                             "kit_id": CLIENT_ID,
                             "request_from": data["request_from"],
