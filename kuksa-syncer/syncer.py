@@ -77,6 +77,7 @@ TIME_TO_KEEP_RUNNER_ALIVE = 3*60
 
 # C++ process tracking
 cpp_processes = {}  # {from_id: [process_info_dict]}
+monitoring_tasks = {}  # {from_id: asyncio.Task} - Store monitoring tasks for cleanup
 
 lsOfRunner = []
 
@@ -163,6 +164,14 @@ async def stop_client_processes(from_id):
         # Clear the client's process list
         del cpp_processes[from_id]
         print(f"Cleared all C++ processes for client {from_id}", flush=True)
+        
+        # Cancel monitoring task if it exists
+        if from_id in monitoring_tasks:
+            task = monitoring_tasks[from_id]
+            if not task.done():
+                print(f"Cancelling monitoring task for client {from_id}")
+                task.cancel()
+            del monitoring_tasks[from_id]
         
         # Clean up memory monitor
         if CPP_MEMORY_AVAILABLE:
@@ -564,7 +573,8 @@ async def messageToKit(data):
                         
                         # Start the automatic memory monitoring task
                         from auto_memory_monitor import periodic_auto_memory_report
-                        asyncio.create_task(periodic_auto_memory_report(sio, from_id, watch_vars))
+                        task = asyncio.create_task(periodic_auto_memory_report(sio, from_id, watch_vars))
+                        monitoring_tasks[from_id] = task
                         
                         # Don't send completion immediately - let the monitoring task handle completion
                         print(f"C++ memory monitoring task started for {from_id} via command {data['cmd']}")
