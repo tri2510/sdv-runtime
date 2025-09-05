@@ -1,1 +1,0 @@
-/usr/bin/c++ -g -O0 -DDEBUG CMakeFiles/fcw_system.dir/src/main.cpp.o -o fcw_system 

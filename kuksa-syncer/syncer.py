@@ -125,7 +125,7 @@ async def send_app_deploy_reply(master_id, content, is_finish, cmd="deploy-reque
 
 async def send_reply(master_id, content, is_error=False, is_done=False, retcode=0, cmd="run_python_app"):
     """General reply function for C++ operations"""
-    await sio.emit("messageToKit-kitReply", {
+    message_payload = {
         "kit_id": CLIENT_ID,
         "request_from": master_id,
         "cmd": cmd,
@@ -134,7 +134,9 @@ async def send_reply(master_id, content, is_error=False, is_done=False, retcode=
         "isDone": is_done,
         "result": content,
         "code": retcode
-    })
+    }
+    
+    await sio.emit("messageToKit-kitReply", message_payload)
 
 async def stop_client_processes(from_id):
     """Stop all C++ processes belonging to a specific client"""
@@ -223,29 +225,6 @@ async def messageToKit(data):
         print("Receive deploy_request...")
         request_from = data["request_from"]
         
-        # Check if this might be a C++ project in deploy_request format
-        if CPP_MEMORY_AVAILABLE and "code" in data:
-            try:
-                # Try to parse as JSON project structure
-                json.loads(data["code"])
-                print(f"Deploy request contains JSON project - treating as C++ project", flush=True)
-                
-                # Convert deploy_request to run_cpp_app format and redirect
-                cpp_data = {
-                    "cmd": "run_cpp_app",
-                    "request_from": data["request_from"],
-                    "data": {
-                        "code": data["code"],
-                        "watch_vars": data.get("watch_vars", "")
-                    }
-                }
-                
-                # Recursively call messageToKit with converted format
-                return await messageToKit(cpp_data)
-                
-            except json.JSONDecodeError:
-                print(f"Deploy request contains non-JSON code - treating as regular Python deploy", flush=True)
-                # Fall through to original deploy handling
         # your code to run app
         await send_app_deploy_reply(request_from, "Receive deploy request \r\n", False, data["cmd"])
         await asyncio.sleep(1)
@@ -501,34 +480,33 @@ async def messageToKit(data):
                 code_data = data["data"]["code"]
                 json.loads(code_data)  # This will raise an error if invalid JSON
 
-                print(f"C++ application requested, processing project data...", flush=True)
 
                 # Initialize ProjectUtils
                 project_utils = ProjectUtils()
 
-                # Step 1: Clean up app directory
-                print("Step 1: Cleaning up app directory...", flush=True)
+                # Clean up app directory
+                print("Cleaning up app directory...", flush=True)
                 cleanup_success = project_utils.empty_app_directory()
                 if cleanup_success:
-                    print("✓ App directory cleaned successfully", flush=True)
+                    print("App directory cleaned successfully", flush=True)
                     await send_reply(from_id, "App directory cleaned successfully\r\n", is_done=False, retcode=0)
                 else:
-                    print("✗ Failed to clean app directory", flush=True)
+                    print("Failed to clean app directory", flush=True)
                     await send_reply(from_id, "Failed to clean app directory\r\n", is_error=True, retcode=1)
                     return 0
 
-                # Step 2: Create content in app based on payload data.code
+                # Create content in app based on payload data.code
                 await send_reply(from_id, "Creating C++ project content...\r\n", is_done=False, retcode=0)
                 try:
                     app_path = project_utils.save_from_payload(data)
-                    print(f"✓ C++ project content created successfully", flush=True)
+                    print("C++ project content created successfully", flush=True)
                 except Exception as e:
-                    print(f"✗ Failed to create C++ project content: {str(e)}", flush=True)
+                    print(f"Failed to create C++ project content: {str(e)}", flush=True)
                     await send_reply(from_id, f"Failed to create C++ project content: {str(e)}", is_error=True, retcode=1)
                     return 0
                 await send_reply(from_id, "C++ project content created successfully\r\n", is_done=False, retcode=0)
 
-                # Step 3: Compile C++ project (pure compilation, no injection)
+                # Compile C++ project
                 compile_ok, compile_msg = await cpp_debugger_util.compile_cpp()
                 print(f"Compiling C++ project...\r\n{compile_msg}", flush=True)
                 await send_reply(from_id, f"Compiling C++ project...\r\n{compile_msg}\r\n", is_done=False, retcode=0)
@@ -580,9 +558,20 @@ async def messageToKit(data):
                                     print(f"✅ Removed C++ app from running list for kit {kit_id}")
                                     break
                         
+                        # Create a wrapper to pass send_reply function for stdout forwarding
+                        async def send_stdout_reply(content, is_error=False):
+                            """Forward stdout/stderr to Kit server"""
+                            # Ensure content has \r\n ending for proper formatting
+                            if not content.endswith('\r\n'):
+                                content = content + '\r\n'
+                            await send_reply(from_id, content, is_error=is_error, is_done=False, retcode=0, cmd=data["cmd"])
+                            # Small delay to prevent message flooding
+                            await asyncio.sleep(0.001)
+                        
+                        
                         # Start the enhanced memory monitoring task with stdout forwarding and completion callback
                         task = asyncio.create_task(cpp_debugger_util.periodic_memory_var_report(
-                            sio, from_id, watch_vars, send_reply_func=cpp_completion_callback))
+                            sio, from_id, watch_vars, send_reply_func=send_stdout_reply))
                         monitoring_tasks[from_id] = task
                         
                         # Add C++ process to lsOfRunner to show "stop" button in kit server
@@ -595,9 +584,8 @@ async def messageToKit(data):
                             "type": "cpp_app"  # Mark as C++ app for identification
                         })
                         
-                        # Ensure stdout forwarding is enabled for this client
-                        print(f"✅ C++ memory monitoring with stdout forwarding started for {from_id}")
-                        print(f"✅ Added C++ app '{app_name}' to running processes list")
+                        print(f"C++ memory monitoring started for client {from_id}")
+                        print(f"Added C++ app '{app_name}' to running processes list")
                         
                         # Don't send completion immediately - let the monitoring task handle completion
                         print(f"C++ memory monitoring task started for {from_id} via command {data['cmd']}")
@@ -741,11 +729,15 @@ async def messageToKit(data):
                         if runner_type == "cpp_app":
                             # For C++ apps, cancel the async task
                             print(f"Cancelling C++ monitoring task for {from_id}")
-                            proc.cancel()  # Cancel the asyncio Task
+                            if hasattr(proc, 'cancel'):
+                                proc.cancel()  # Cancel the asyncio Task
                             await send_reply(from_id, "C++ application stopped\r\n", is_done=True, retcode=0)
                         else:
                             # For Python apps, kill the process
-                            proc.kill()
+                            if hasattr(proc, 'kill'):
+                                proc.kill()
+                            else:
+                                print(f"Process {proc} doesn't have kill method")
                         
                         lsOfRunner.remove(runner)
                         python_stopped = True

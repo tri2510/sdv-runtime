@@ -387,6 +387,9 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
     
     print(f"🔥 Starting periodic memory variable reporting with stdout capture for kit {kit_id}")
     print(f"🔥 Variables to monitor: {watch_vars_str}")
+    print(f"🔥 Process PID: {ptrace_monitor.process.pid}")
+    print(f"🔥 Process stdout: {ptrace_monitor.process.stdout}")
+    print(f"🔥 Process stderr: {ptrace_monitor.process.stderr}")
     
     # Set up stdout capture from the ptrace monitored process
     import select
@@ -418,9 +421,13 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
                 # Check if there's data available for reading
                 ready, _, _ = select.select([ptrace_monitor.process.stdout, ptrace_monitor.process.stderr], [], [], 0.1)
                 
+                if ready:
+                    print(f"🔥 Select found {len(ready)} streams with data available")
+                
                 for stream in ready:
                     if stream == ptrace_monitor.process.stdout:
                         chunk = stream.read(1024)
+                        print(f"🔥 Read stdout chunk: {chunk!r}")
                         if chunk:
                             stdout_buffer += chunk
                             # Send stdout lines to kit server
@@ -429,16 +436,20 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
                                 if line.strip():  # Only send non-empty lines
                                     lines_read += 1
                                     print(f"🔥 Captured stdout line {lines_read}: {line}")
-                                    await socketio.emit('messageToKit-kitReply', {
-                                        'kit_id': CLIENT_ID,
-                                        'request_from': kit_id,
-                                        'cmd': 'run_cpp_app',
-                                        'data': line,
-                                        'result': line,
-                                        'isError': False,
-                                        'isDone': False,
-                                        'code': 0
-                                    })
+                                    # Use send_reply_func if provided (for better compatibility with Kit server)
+                                    if send_reply_func:
+                                        await send_reply_func(line + '\r\n', is_error=False)
+                                    else:
+                                        await socketio.emit('messageToKit-kitReply', {
+                                            'kit_id': CLIENT_ID,
+                                            'request_from': kit_id,
+                                            'cmd': 'run_cpp_app',
+                                            'data': line,
+                                            'result': line,
+                                            'isError': False,
+                                            'isDone': False,
+                                            'code': 0
+                                        })
                     
                     elif stream == ptrace_monitor.process.stderr:
                         chunk = stream.read(1024)
@@ -450,16 +461,20 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
                                 if line.strip():  # Only send non-empty lines
                                     lines_read += 1
                                     print(f"🔥 Captured stderr line {lines_read}: {line}")
-                                    await socketio.emit('messageToKit-kitReply', {
-                                        'kit_id': CLIENT_ID,
-                                        'request_from': kit_id,
-                                        'cmd': 'run_cpp_app',
-                                        'data': f"[STDERR] {line}",
-                                        'result': f"[STDERR] {line}",
-                                        'isError': False,
-                                        'isDone': False,
-                                        'code': 0
-                                    })
+                                    # Use send_reply_func if provided (for better compatibility with Kit server)
+                                    if send_reply_func:
+                                        await send_reply_func(f"[STDERR] {line}\r\n", is_error=True)
+                                    else:
+                                        await socketio.emit('messageToKit-kitReply', {
+                                            'kit_id': CLIENT_ID,
+                                            'request_from': kit_id,
+                                            'cmd': 'run_cpp_app',
+                                            'data': f"[STDERR] {line}",
+                                            'result': f"[STDERR] {line}",
+                                            'isError': False,
+                                            'isDone': False,
+                                            'code': 0
+                                        })
                                     
             except Exception as stdout_error:
                 # Don't let stdout reading errors break the monitoring

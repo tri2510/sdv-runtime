@@ -113,7 +113,15 @@ class ProjectUtils:
         logger.info("Using memory monitoring - no header injection needed")
 
         try:
-            project_items = json.loads(code_data_str)
+            project_data = json.loads(code_data_str)
+            
+            # Check if this is a JSON project format (from our examples)
+            if "files" in project_data and isinstance(project_data["files"], dict):
+                return self.save_from_json_project(project_data)
+            
+            # Traditional format - expect list of items
+            project_items = project_data if isinstance(project_data, list) else project_data
+            
         except json.JSONDecodeError as e:
             raise ValueError("Invalid JSON format in 'data.code'") from e
 
@@ -131,6 +139,38 @@ class ProjectUtils:
         self._process_items(items_to_process, self.base_path, watch_vars)
 
         logger.info(f"Project structure successfully created in {self.base_path}")
+        return str(self.base_path)
+
+    def save_from_json_project(self, project_data: Dict[str, Any]) -> str:
+        """
+        Save a project from JSON project format (for examples).
+        
+        Args:
+            project_data: Dict containing name, description, files, build_system, etc.
+        
+        Returns:
+            str: Path to the saved project directory.
+        """
+        project_name = project_data.get("name", "UnknownProject")
+        files = project_data.get("files", {})
+        
+        # Clean up app directory first
+        self.empty_app_directory()
+        
+        # Create files from the files dict
+        for file_path, content in files.items():
+            full_path = self.base_path / file_path
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Handle escaped content
+            if isinstance(content, str):
+                content = content.replace('\\n', '\n').replace('\\t', '\t')
+            
+            with open(full_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            logger.info(f"Created file: {full_path}")
+        
+        logger.info(f"JSON project '{project_name}' saved to {self.base_path}")
         return str(self.base_path)
 
     def empty_app_directory(self) -> bool:
