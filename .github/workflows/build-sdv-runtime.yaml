@@ -61,6 +61,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and Push Docker image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -78,10 +79,3 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      - name: Generate artifact attestation
-        if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v1
-        with:
-          subject-name: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
-          subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
