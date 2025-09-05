@@ -33,9 +33,10 @@ FROM ubuntu:22.04 AS python-builder
 ARG TARGETARCH
 
 # Install Python and pip
-RUN for i in 1 2 3; do apt-get update && apt-get install -y python3 python3-pip git build-essential && break || sleep 5; done \
+RUN for i in 1 2 3; do apt-get update && apt-get install -y --no-install-recommends python3 python3-pip git build-essential && break || sleep 5; done \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 --version
 
 WORKDIR /build
 
