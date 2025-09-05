@@ -45,9 +45,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-base-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-v2-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-base-buildx-
+            ${{ runner.os }}-buildx-v2-
 
       - name: Extract metadata
         id: meta
