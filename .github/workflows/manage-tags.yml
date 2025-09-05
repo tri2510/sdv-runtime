@@ -12,30 +12,30 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Select tag management action'
+        description: '🎯 What do you want to do?'
         required: true
-        default: 'create-release'
+        default: 'list-tags'
         type: choice
         options:
-        - 'create-release'
-        - 'retag-existing' 
-        - 'promote-to-latest'
-        - 'create-prerelease'
         - 'list-tags'
+        - 'create-release'
+        - 'create-prerelease'
+        - 'promote-to-latest'
+        - 'retag-existing'
       version:
-        description: 'Version tag (e.g., v2.1.0, v2.1.0-beta.1)'
+        description: '📦 New version to create (e.g. v2.1.0 or v2.1.0-beta.1) - Required for CREATE actions only'
         required: false
         type: string
       source_tag:
-        description: 'Source tag (for retag/promote operations)'
+        description: '🏷️ Existing tag to copy FROM (e.g. v2.0.0) - Required for RETAG/PROMOTE actions only'
         required: false
         type: string
       target_tag:
-        description: 'Target tag (for retag operations)'
+        description: '🎯 New tag name to copy TO (e.g. v2.0.1) - Required for RETAG action only'
         required: false
         type: string
       release_notes:
-        description: 'Release notes (optional)'
+        description: '📝 Optional release description - Only used for CREATE actions'
         required: false
         type: string
 
@@ -72,26 +72,38 @@ jobs:
 
       - name: Validate inputs
         run: |
+          echo "🔍 Validating inputs for action: ${{ inputs.action }}"
           case "${{ inputs.action }}" in
             "create-release"|"create-prerelease")
               if [ -z "${{ inputs.version }}" ]; then
-                echo "Error: version is required for ${{ inputs.action }}"
+                echo "❌ ERROR: Please fill in the 'New version to create' field"
+                echo "   Example: v2.1.0 (for release) or v2.1.0-beta.1 (for prerelease)"
                 exit 1
               fi
+              echo "✅ Version field validated: ${{ inputs.version }}"
               ;;
             "retag-existing")
               if [ -z "${{ inputs.source_tag }}" ] || [ -z "${{ inputs.target_tag }}" ]; then
-                echo "Error: both source_tag and target_tag are required for retag-existing"
+                echo "❌ ERROR: For retag operation, you need to fill in both:"
+                echo "   - 'Existing tag to copy FROM' (source)"
+                echo "   - 'New tag name to copy TO' (target)"
                 exit 1
               fi
+              echo "✅ Retag fields validated: ${{ inputs.source_tag }} → ${{ inputs.target_tag }}"
               ;;
             "promote-to-latest")
               if [ -z "${{ inputs.source_tag }}" ]; then
-                echo "Error: source_tag is required for promote-to-latest"
+                echo "❌ ERROR: Please fill in the 'Existing tag to copy FROM' field"
+                echo "   Example: v2.1.0"
                 exit 1
               fi
+              echo "✅ Promote field validated: ${{ inputs.source_tag }} → latest"
+              ;;
+            "list-tags")
+              echo "✅ No input validation needed for listing tags"
               ;;
           esac
+          echo "🚀 Ready to proceed with ${{ inputs.action }}"
 
       - name: List existing tags
         if: inputs.action == 'list-tags'
