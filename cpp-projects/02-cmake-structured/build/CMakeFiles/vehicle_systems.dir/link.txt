@@ -1,0 +1,1 @@
+/usr/bin/c++ -g -O0 CMakeFiles/vehicle_systems.dir/src/main.cpp.o CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o -o vehicle_systems 
