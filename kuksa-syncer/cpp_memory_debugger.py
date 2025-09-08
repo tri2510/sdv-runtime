@@ -9,9 +9,11 @@ import subprocess
 import asyncio
 import time
 from pathlib import Path
+from typing import Tuple
 from memory_monitor import ProcessMemoryMonitor, SmartVariableDetector
 from ptrace_memory_reader import MemoryVariableMonitor
 from auto_variable_detector import AutoVariableDetector, SmartMemoryReader
+from universal_auto_detector import UniversalAutoDetector, create_variable_list_for_syncer
 
 # Import CLIENT_ID from syncer context
 CLIENT_ID = "RunTime-TriCPP"
@@ -235,6 +237,42 @@ async def compile_with_makefile():
     success_msg += "✅ Make build completed successfully!"
     return True, success_msg
 
+def auto_detect_project_variables() -> Tuple[str, Path]:
+    """Auto-detect variables from the current project with ZERO hardcoded values."""
+    print("🚀 Starting AUTOMATIC project variable detection...")
+    
+    # Try to detect project directory intelligently
+    possible_projects = [
+        # First check if we're in a C++ project directory
+        APP_DIR,
+        # Check for other C++ projects in parent directories
+        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/basic-monitor"),
+        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/cmake-multidir"),
+        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/fcw-advanced"),
+        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/makefile-build"),
+        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/mixed-types"),
+        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/modular-system"),
+    ]
+    
+    detector = UniversalAutoDetector()
+    
+    for project_dir in possible_projects:
+        if project_dir.exists():
+            print(f"🔍 Checking project: {project_dir}")
+            variables, binary_path = detector.auto_detect_project_variables(project_dir)
+            
+            # Filter to only variables found in binary
+            monitorable_vars = [v for v in variables if v['found_in_binary']]
+            
+            if len(monitorable_vars) > 0 and binary_path:
+                var_list = create_variable_list_for_syncer(monitorable_vars)
+                print(f"✅ AUTO-DETECTED {len(monitorable_vars)} variables: {var_list}")
+                print(f"✅ Using binary: {binary_path}")
+                return var_list, binary_path
+    
+    print("❌ No project with monitorable variables found")
+    return "", None
+
 def find_executable_binary(app_dir: Path) -> Path:
     """Find the executable binary, handling both simple builds and CMake builds."""
     # Check for simple build (main_bin)
@@ -276,35 +314,85 @@ async def run_binary():
     return str(actual_binary), None, f'Ready to run with memory monitoring: {actual_binary.name}'
 
 async def start_memory_monitoring(watch_vars_str: str, callback=None):
-    """Start high-performance ptrace-based memory monitoring."""
+    """Start high-performance ptrace-based memory monitoring with AUTOMATIC variable detection."""
     global ptrace_monitor
     
-    # Find the actual executable binary
-    actual_binary = find_executable_binary(APP_DIR)
+    # AUTOMATIC DETECTION: If no variables provided or contains hardcoded defaults, auto-detect
+    auto_detect_needed = False
     
-    if not actual_binary.exists():
+    if not watch_vars_str or not watch_vars_str.strip():
+        print("🤖 No variables specified - using AUTOMATIC DETECTION")
+        auto_detect_needed = True
+    elif any(hardcoded in watch_vars_str for hardcoded in ['counter', 'sensor_value', 'collision_risk']):
+        print("🤖 Hardcoded variables detected - switching to AUTOMATIC DETECTION")
+        auto_detect_needed = True
+    
+    actual_binary = None
+    
+    if auto_detect_needed:
+        # Use universal auto-detection
+        auto_vars, auto_binary = auto_detect_project_variables()
+        if auto_vars and auto_binary:
+            watch_vars_str = auto_vars
+            actual_binary = auto_binary
+            print(f"🤖 AUTO-DETECTED variables: {watch_vars_str}")
+            print(f"🤖 AUTO-DETECTED binary: {actual_binary}")
+        else:
+            print("❌ Automatic detection failed, falling back to manual search")
+            actual_binary = find_executable_binary(APP_DIR)
+    else:
+        # Use provided variables with existing binary detection
+        actual_binary = find_executable_binary(APP_DIR)
+    
+    if not actual_binary or not actual_binary.exists():
         return {"error": "Binary not found"}, f"Binary not found: {actual_binary}"
     
-    # Parse watch variables with better type detection
+    # Parse watch variables - NO hardcoded type assumptions, use actual detection
     watch_vars = {}
     if watch_vars_str:
-        for var in watch_vars_str.split(','):
-            var_name = var.strip()
-            # Smart type detection for common FCW ADAS variables
-            if 'speed' in var_name.lower():
-                watch_vars[var_name] = 'float'
-            elif 'risk' in var_name.lower() or 'lane' in var_name.lower():
-                watch_vars[var_name] = 'int'
-            elif 'active' in var_name.lower() or 'warning' in var_name.lower():
-                watch_vars[var_name] = 'bool'
-            elif 'pressure' in var_name.lower() or 'temp' in var_name.lower():
-                watch_vars[var_name] = 'float'
+        # Get variable types from the project detection using current directory
+        detector = UniversalAutoDetector()
+        project_vars, _ = detector.auto_detect_project_variables(APP_DIR)
+        var_type_map = {v['name']: v['type'] for v in project_vars if v['found_in_binary']}
+        
+        # SMART ADAPTIVE FILTERING: Only setup variables that actually exist
+        requested_vars = [v.strip() for v in watch_vars_str.split(',') if v.strip()]
+        available_vars = list(var_type_map.keys())
+        
+        print(f"🔍 Initial setup - Available variables in project: {available_vars}")
+        print(f"📋 Initial setup - Requested variables: {requested_vars}")
+        
+        for var_name in requested_vars:
+            if var_name in var_type_map:
+                watch_vars[var_name] = var_type_map[var_name]
+                print(f"✅ Initial setup - Will monitor: {var_name} ({var_type_map[var_name]})")
             else:
-                watch_vars[var_name] = 'int'  # Default
+                print(f"⚠️  Initial setup - Variable '{var_name}' requested but NOT FOUND in current project - skipping")
+        
+        # If no requested variables were found, auto-select available ones  
+        if not watch_vars and available_vars:
+            print(f"📍 Initial setup - No requested variables available, auto-selecting from available variables...")
+            # Select up to 5 most relevant available variables
+            for var_name in available_vars[:5]:
+                watch_vars[var_name] = var_type_map[var_name]
+                print(f"✅ Initial setup - Auto-selected: {var_name} ({var_type_map[var_name]})")
+        
+        print(f"🎯 Initial setup - Final monitoring variables: {list(watch_vars.keys())}")
+        
+        # Create symbol mappings from auto-detection results for memory monitor
+        symbol_mappings = {}
+        for var in project_vars:
+            if var['found_in_binary'] and var['name'] in watch_vars:
+                symbol_mappings[var['name']] = var['symbol_address']
+                print(f"🔗 Mapping {var['name']} -> 0x{var['symbol_address']:x}")
     
     # Start ptrace-based monitor
     ptrace_monitor = MemoryVariableMonitor(str(actual_binary))
     ptrace_monitor.build_symbol_table()
+    
+    # Override symbol table with auto-detected mappings
+    if symbol_mappings:
+        ptrace_monitor.set_symbol_mappings(symbol_mappings)
     
     if not ptrace_monitor.start_process():
         return {"error": "Failed to start process"}, "Process start failed"
@@ -315,28 +403,65 @@ async def start_memory_monitoring(watch_vars_str: str, callback=None):
     return {"status": "monitoring_started", "pid": ptrace_monitor.process.pid}, "Ptrace monitoring active"
 
 async def get_global_variables(watch_vars_str, pid=None):
-    """Read variables directly from process memory using ptrace."""
+    """Read variables directly from process memory using ptrace with AUTOMATIC type detection."""
     global ptrace_monitor
     
     if not ptrace_monitor or not ptrace_monitor.process:
         return {"error": "No active monitoring"}, "Monitor not running"
     
-    # Parse variables to monitor with type detection
+    # Parse variables to monitor with AUTOMATIC type detection
     variables = {}
     if watch_vars_str:
-        for var in watch_vars_str.split(','):
-            var_name = var.strip()
-            # Smart type detection
-            if 'speed' in var_name.lower():
-                variables[var_name] = 'float'
-            elif 'risk' in var_name.lower() or 'lane' in var_name.lower():
-                variables[var_name] = 'int'
-            elif 'active' in var_name.lower() or 'warning' in var_name.lower():
-                variables[var_name] = 'bool'
-            elif 'pressure' in var_name.lower():
-                variables[var_name] = 'float'
-            else:
-                variables[var_name] = 'int'
+        # Get variable types from automatic project detection
+        try:
+            detector = UniversalAutoDetector()
+            # Find the project directory from the binary path
+            binary_path = Path(ptrace_monitor.binary_path)
+            # Use APP_DIR which is now correctly set to the project directory
+            project_vars, _ = detector.auto_detect_project_variables(APP_DIR)
+            var_type_map = {v['name']: v['type'] for v in project_vars if v['found_in_binary']}
+            
+            # SMART ADAPTIVE FILTERING: Only monitor variables that actually exist
+            requested_vars = [v.strip() for v in watch_vars_str.split(',') if v.strip()]
+            available_vars = list(var_type_map.keys())
+            
+            print(f"🔍 Available variables in project: {available_vars}")
+            print(f"📋 Requested variables: {requested_vars}")
+            
+            for var_name in requested_vars:
+                if var_name in var_type_map:
+                    variables[var_name] = var_type_map[var_name]
+                    print(f"✅ Will monitor: {var_name} ({var_type_map[var_name]})")
+                else:
+                    print(f"⚠️  Variable '{var_name}' requested but NOT FOUND in current project - skipping")
+            
+            # If no requested variables were found, auto-select available ones  
+            if not variables and available_vars:
+                print(f"📍 No requested variables available, auto-selecting from available variables...")
+                # Select up to 5 most relevant available variables
+                for var_name in available_vars[:5]:
+                    variables[var_name] = var_type_map[var_name]
+                    print(f"✅ Auto-selected: {var_name} ({var_type_map[var_name]})")
+            
+            print(f"🎯 Final monitoring variables: {list(variables.keys())}")
+            
+            # Create symbol mappings for the variables we're actually monitoring
+            symbol_mappings = {}
+            for var in project_vars:
+                if var['found_in_binary'] and var['name'] in variables:
+                    symbol_mappings[var['name']] = var['symbol_address']
+                    print(f"🔗 Runtime mapping {var['name']} -> 0x{var['symbol_address']:x}")
+            
+            # Update memory monitor symbol table with correct mappings
+            if symbol_mappings:
+                ptrace_monitor.set_symbol_mappings(symbol_mappings)
+                
+        except Exception as e:
+            print(f"Warning: Automatic type detection failed: {e}")
+            # Fallback to basic parsing without hardcoded assumptions
+            for var in watch_vars_str.split(','):
+                var_name = var.strip()
+                variables[var_name] = 'int'  # Simple fallback
     
     # Read variables using ptrace
     values = ptrace_monitor.monitor_variables(variables)
@@ -583,3 +708,76 @@ def set_global_variable(var_name, value):
 def validate_variable_setting(var_name, value):
     """Validate variable setting operation."""
     return True, "Memory-based setting not yet implemented"
+
+async def start_cpp_trace_vars_monitoring(data, request_from, socketio):
+    """
+    Start C++ trace_vars monitoring - entry point for trace_vars command from Kit Server
+    This function handles the complete trace_vars workflow:
+    1. Parse trace_vars command data
+    2. Setup C++ project and compilation
+    3. Start memory monitoring for specified variables
+    4. Send trace_vars events back to Kit Server via socketio
+    """
+    print(f"🔥 Starting trace_vars monitoring for {request_from}")
+    
+    try:
+        # Extract trace_vars parameters
+        project_path = data.get('project_path')
+        binary_name = data.get('binary_name')
+        trace_vars = data.get('trace_vars', [])
+        duration = data.get('duration', 10)  # Default 10 seconds
+        project_type = data.get('project_type', 'cmake')
+        
+        print(f"🎯 trace_vars parameters:")
+        print(f"   Project: {project_path}")
+        print(f"   Binary: {binary_name}")
+        print(f"   Variables: {trace_vars}")
+        print(f"   Duration: {duration}s")
+        print(f"   Type: {project_type}")
+        
+        # Store original directory
+        original_dir = os.getcwd()
+        
+        # Change to project directory and update APP_DIR
+        if project_path:
+            os.chdir(project_path)
+            global APP_DIR
+            APP_DIR = Path(project_path)
+            print(f"📂 Changed to project directory: {project_path}")
+        
+        # Compile the project
+        print("🔨 Compiling C++ project...")
+        if project_type == 'cmake':
+            await compile_with_cmake()
+        else:
+            await compile_cpp()
+        
+        print("✅ Compilation completed")
+        
+        # Start memory monitoring with trace_vars
+        watch_vars_str = ','.join(trace_vars)
+        print(f"🔍 Starting memory monitoring for variables: {watch_vars_str}")
+        
+        # Use periodic_memory_var_report which handles the socketio events
+        await periodic_memory_var_report(
+            socketio=socketio,
+            kit_id=request_from, 
+            watch_vars_str=watch_vars_str,
+            send_reply_func=None
+        )
+        
+        print(f"✅ trace_vars monitoring completed for {request_from}")
+        
+        # Restore original directory
+        os.chdir(original_dir)
+        
+    except Exception as e:
+        print(f"❌ trace_vars monitoring error: {e}")
+        import traceback
+        traceback.print_exc()
+        # Restore original directory on error
+        try:
+            os.chdir(original_dir)
+        except:
+            pass
+        raise

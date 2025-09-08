@@ -485,8 +485,8 @@ async def test_auto_monitoring(variables="", interval=0.1, duration=300, max_rep
     print("=== Testing Automatic Memory Monitoring ===")
     print(f"Configuration: interval={interval}s, duration={duration}s, max_reports={max_reports}")
     
-    # Use provided variables or default ones
-    watch_vars = variables if variables else "ego_speed,current_lane,tri_value"
+    # Use provided variables or auto-detect (no hardcoded fallback)
+    watch_vars = variables if variables else ""  # Empty string triggers auto-detection
     
     result, msg = await start_auto_monitoring(watch_vars)
     print(f"Setup result: {result} - {msg}")

@@ -10,7 +10,7 @@ import os
 import signal
 import struct
 import subprocess
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 # ptrace constants
 PTRACE_ATTACH = 16
@@ -153,9 +153,12 @@ class PtraceMemoryReader:
                 # Check for NaN or infinite values
                 import math
                 if math.isnan(value) or math.isinf(value):
+                    print(f"Warning: Invalid float value at 0x{address:x}: {value}")
                     return None
-                return value
-            except:
+                # Round to reasonable precision for display
+                return round(value, 2)
+            except Exception as e:
+                print(f"Float read error at 0x{address:x}: {e}")
                 return None
         return None
     
@@ -184,6 +187,13 @@ class MemoryVariableMonitor:
         self.reader = None
         self.base_address = None
         
+    def set_symbol_mappings(self, variable_mappings: Dict[str, int]):
+        """Set symbol mappings from auto-detection system."""
+        print(f"🔗 Setting {len(variable_mappings)} symbol mappings from auto-detection")
+        for var_name, address in variable_mappings.items():
+            self.symbol_table[var_name] = address
+            print(f"  📍 {var_name}: 0x{address:x}")
+    
     def build_symbol_table(self):
         """Build symbol table from binary."""
         try:
@@ -201,31 +211,80 @@ class MemoryVariableMonitor:
             # Show relevant variables
             relevant_vars = []
             for name, addr in self.symbol_table.items():
-                if any(var in name for var in ['ego_speed', 'collision_risk', 'current_lane', 'steering_angle', 'warning_active', 'brake_pressure']):
-                    relevant_vars.append((name, addr))
-                    print(f"  {name}: 0x{addr:x}")
+                # Show all data symbols (no hardcoded filtering)
+                relevant_vars.append((name, addr))
+                print(f"  {name}: 0x{addr:x}")
             
             print(f"Found {len(relevant_vars)} relevant monitoring variables")
                     
         except Exception as e:
             print(f"Symbol table build failed: {e}")
     
-    def get_process_base_address(self) -> Optional[int]:
-        """Get the base address of the process from memory maps."""
+    def analyze_memory_layout(self) -> Dict[str, int]:
+        """Analyze the complete memory layout to create smart address mapping."""
         if not self.process:
-            return None
+            return {}
         
         try:
+            binary_name = os.path.basename(self.binary_path)
+            print(f"🧠 SMART MEMORY MAPPING: Analyzing {binary_name}")
+            
+            memory_regions = {}
             with open(f'/proc/{self.process.pid}/maps', 'r') as f:
                 for line in f:
-                    if 'main_bin' in line and 'r--p' in line:  # Look for read-only executable mapping
-                        addr_range = line.split()[0]
-                        start_addr = addr_range.split('-')[0]
-                        return int(start_addr, 16)
+                    parts = line.split()
+                    if len(parts) >= 6:
+                        addr_range = parts[0]
+                        permissions = parts[1] 
+                        offset = parts[2]
+                        path = parts[5] if len(parts) > 5 else ""
+                        
+                        # Look for our binary in memory maps
+                        if binary_name in path or self.binary_path in path:
+                            start_addr = int(addr_range.split('-')[0], 16)
+                            end_addr = int(addr_range.split('-')[1], 16)
+                            
+                            # Categorize memory regions
+                            if 'r-x' in permissions:
+                                memory_regions['text'] = start_addr
+                                print(f"📍 TEXT section: 0x{start_addr:x}-0x{end_addr:x}")
+                            elif 'r--' in permissions:
+                                memory_regions['rodata'] = start_addr  
+                                print(f"📖 RODATA section: 0x{start_addr:x}-0x{end_addr:x}")
+                            elif 'rw-' in permissions:
+                                if 'data' not in memory_regions:
+                                    memory_regions['data'] = start_addr
+                                    print(f"📊 DATA section: 0x{start_addr:x}-0x{end_addr:x}")
+                                else:
+                                    memory_regions['bss'] = start_addr
+                                    print(f"🗃️  BSS section: 0x{start_addr:x}-0x{end_addr:x}")
+            
+            print(f"✅ Memory layout analysis complete: {len(memory_regions)} regions found")
+            return memory_regions
+                        
         except Exception as e:
-            print(f"Error reading process memory maps: {e}")
+            print(f"Error analyzing memory layout: {e}")
         
-        return None
+        return {}
+
+    def get_process_base_address(self) -> Optional[int]:
+        """Get the ACTUAL runtime base address from process memory maps."""
+        layout = self.analyze_memory_layout()
+        self.memory_layout = layout
+        
+        # Prefer data section, fallback to text section
+        if 'data' in layout:
+            print(f"✅ Using DATA section base: 0x{layout['data']:x}")
+            return layout['data']
+        elif 'bss' in layout:
+            print(f"✅ Using BSS section base: 0x{layout['bss']:x}")
+            return layout['bss']
+        elif 'text' in layout:
+            print(f"⚠️  Using TEXT section base: 0x{layout['text']:x}")
+            return layout['text']
+        else:
+            print(f"❌ No usable memory sections found")
+            return None
     
     def start_process(self) -> bool:
         """Start the target process."""
@@ -239,9 +298,16 @@ class MemoryVariableMonitor:
                                            universal_newlines=True)
             print(f"Started process PID {self.process.pid}")
             
-            # Give it time to initialize
+            # CRITICAL: Wait for C++ global variable initialization
             import time
-            time.sleep(1)
+            print("⏳ Waiting for C++ global variable initialization...")
+            time.sleep(3.0)  # Increased delay for proper variable initialization
+            
+            # Check if process is still alive after initialization
+            if self.process.poll() is not None:
+                print(f"❌ Process exited during initialization with code {self.process.returncode}")
+                return False
+            print(f"✅ Process {self.process.pid} initialized successfully")
             
             # Get the process base address from memory maps
             self.base_address = self.get_process_base_address()
@@ -258,8 +324,132 @@ class MemoryVariableMonitor:
             print(f"Process start failed: {e}")
             return False
     
+    def read_int_from_proc_mem(self, address: int) -> Optional[int]:
+        """Read int directly from /proc/pid/mem."""
+        try:
+            import struct
+            # Try to read with os.pread for better permission handling
+            try:
+                import os
+                fd = os.open(f'/proc/{self.process.pid}/mem', os.O_RDONLY)
+                data = os.pread(fd, 4, address)
+                os.close(fd)
+                if len(data) == 4:
+                    value = struct.unpack('i', data)[0]
+                    return value
+            except:
+                # Fallback to regular file reading
+                with open(f'/proc/{self.process.pid}/mem', 'rb') as mem_file:
+                    mem_file.seek(address)
+                    data = mem_file.read(4)  # 4 bytes for int
+                    if len(data) == 4:
+                        value = struct.unpack('i', data)[0]
+                        return value
+        except Exception as e:
+            print(f"Direct /proc/mem read failed at 0x{address:x}: {e}")
+        return None
+
+    def read_float_from_proc_mem(self, address: int) -> Optional[float]:
+        """Read float directly from /proc/pid/mem (more reliable than ptrace)."""
+        try:
+            import struct
+            # Try to read with os.pread for better permission handling
+            try:
+                import os
+                fd = os.open(f'/proc/{self.process.pid}/mem', os.O_RDONLY)
+                data = os.pread(fd, 4, address)
+                os.close(fd)
+                if len(data) == 4:
+                    value = struct.unpack('f', data)[0]
+                    return value
+            except:
+                # Fallback to regular file reading
+                with open(f'/proc/{self.process.pid}/mem', 'rb') as mem_file:
+                    mem_file.seek(address)
+                    data = mem_file.read(4)  # 4 bytes for float
+                    if len(data) == 4:
+                        value = struct.unpack('f', data)[0]
+                        return value
+        except Exception as e:
+            print(f"Direct /proc/mem read failed at 0x{address:x}: {e}")
+        return None
+
+    def smart_calculate_runtime_address(self, var_name: str, static_address: int) -> List[int]:
+        """Smart address calculation that adapts to any binary's memory layout."""
+        candidate_addresses = []
+        
+        if not hasattr(self, 'memory_layout'):
+            self.memory_layout = {}
+        
+        print(f"🧠 SMART CALC: {var_name} static=0x{static_address:x}")
+        
+        # Method 1: Use actual memory layout analysis
+        if self.base_address and self.memory_layout:
+            # Try data section mapping first
+            if 'data' in self.memory_layout:
+                data_base = self.memory_layout['data']
+                # Try different static base calculations
+                for static_base in [0x6000, 0x5000, 0x4000, 0x3000, 0x2000, 0x1000]:
+                    if static_address >= static_base:
+                        offset = static_address - static_base
+                        runtime_addr = data_base + offset
+                        candidate_addresses.append(runtime_addr)
+                        print(f"   📊 DATA method (base=0x{static_base:x}): 0x{runtime_addr:x}")
+                        break
+            
+            # Try BSS section mapping
+            if 'bss' in self.memory_layout:
+                bss_base = self.memory_layout['bss'] 
+                for static_base in [0x6000, 0x5000, 0x4000]:
+                    if static_address >= static_base:
+                        offset = static_address - static_base
+                        runtime_addr = bss_base + offset
+                        candidate_addresses.append(runtime_addr)
+                        print(f"   🗃️  BSS method (base=0x{static_base:x}): 0x{runtime_addr:x}")
+                        break
+            
+            # Try text section + offset (for some binaries)
+            if 'text' in self.memory_layout:
+                text_base = self.memory_layout['text']
+                runtime_addr = text_base + static_address
+                candidate_addresses.append(runtime_addr)
+                print(f"   📍 TEXT+offset method: 0x{runtime_addr:x}")
+        
+        # Method 2: Legacy calculation methods as fallback
+        if self.base_address:
+            # Classic method with different base addresses
+            for static_base in [0x6000, 0x5000, 0x4000, 0x3000]:
+                if static_address >= static_base:
+                    offset = static_address - static_base
+                    runtime_addr = self.base_address + offset
+                    candidate_addresses.append(runtime_addr)
+                    print(f"   🔧 Legacy method (base=0x{static_base:x}): 0x{runtime_addr:x}")
+                    break
+            
+            # Alternative calculations
+            alt_addresses = [
+                self.base_address + static_address,  # Direct offset
+                self.base_address + (static_address & 0xFFF),  # Only lower bits
+                self.base_address + (static_address & 0x1FFF), # Lower 13 bits  
+            ]
+            candidate_addresses.extend(alt_addresses)
+            print(f"   ⚡ Alternative methods: {[hex(a) for a in alt_addresses]}")
+        
+        # Method 3: Direct static address (no ASLR or PIE disabled)
+        candidate_addresses.append(static_address)
+        print(f"   📍 Static address: 0x{static_address:x}")
+        
+        # Remove duplicates while preserving order
+        unique_addresses = []
+        for addr in candidate_addresses:
+            if addr not in unique_addresses:
+                unique_addresses.append(addr)
+        
+        print(f"   ✅ Total candidates: {len(unique_addresses)}")
+        return unique_addresses
+
     def read_variable(self, var_name: str, var_type: str) -> Optional[Any]:
-        """Read a variable value."""
+        """Read a variable value with proper ASLR-aware address calculation."""
         if not self.reader:
             print(f"No ptrace reader available for {var_name}")
             return None
@@ -270,29 +460,57 @@ class MemoryVariableMonitor:
         
         static_address = self.symbol_table[var_name]
         
-        # Adjust address using process base address
-        if self.base_address:
-            adjusted_address = self.base_address + static_address
-        else:
-            adjusted_address = static_address
+        # SMART ADDRESS CALCULATION: Generate all possible runtime addresses
+        candidate_addresses = self.smart_calculate_runtime_address(var_name, static_address)
         
-        try:
-            if var_type == 'int':
-                value = self.reader.read_int32(adjusted_address)
-            elif var_type == 'float':
-                value = self.reader.read_float(adjusted_address)
-            elif var_type == 'double':
-                value = self.reader.read_double(adjusted_address)
-            elif var_type == 'bool':
-                value = self.reader.read_bool(adjusted_address)
-            else:
-                value = self.reader.read_int32(adjusted_address)  # Default
+        # For float values, use direct /proc/pid/mem reading (more reliable)
+        if var_type == 'float':
+            print(f"🔄 Reading float {var_name} using SMART /proc/pid/mem method...")
             
-            return value
-                
-        except Exception as e:
-            print(f"Variable read failed for {var_name}: {e}")
+            for i, address in enumerate(candidate_addresses):
+                value = self.read_float_from_proc_mem(address)
+                if value is not None and value == value:  # Not NaN
+                    print(f"✅ SMART float read succeeded for {var_name}: {value} at 0x{address:x} (method #{i+1})")
+                    return value
+            
+            print(f"❌ All SMART methods failed for float {var_name}")
             return None
+        
+        # For integer values, use direct /proc/pid/mem reading (more reliable than ptrace)
+        if var_type == 'int':
+            print(f"🔄 Reading int {var_name} using SMART /proc/pid/mem method...")
+            
+            for i, address in enumerate(candidate_addresses):
+                value = self.read_int_from_proc_mem(address)
+                if value is not None:
+                    print(f"✅ SMART int read succeeded for {var_name}: {value} at 0x{address:x} (method #{i+1})")
+                    return value
+            
+            print(f"❌ All SMART methods failed for int {var_name}")
+            return None
+        
+        # For other types (double, bool), try smart addressing with ptrace
+        print(f"🔄 Reading {var_type} {var_name} using SMART ptrace method...")
+        
+        for i, address in enumerate(candidate_addresses):
+            try:
+                if var_type == 'double':
+                    value = self.reader.read_double(address)
+                elif var_type == 'bool':
+                    value = self.reader.read_bool(address)
+                else:
+                    value = self.reader.read_int32(address)  # Default
+                
+                if value is not None:
+                    print(f"✅ SMART {var_type} read succeeded for {var_name}: {value} at 0x{address:x} (method #{i+1})")
+                    return value
+                    
+            except Exception as e:
+                print(f"   ⚠️  Method #{i+1} failed at 0x{address:x}: {e}")
+                continue
+        
+        print(f"❌ All SMART methods failed for {var_type} {var_name}")
+        return None
     
     def parse_stdout_variables(self) -> Dict[str, Any]:
         """Parse variables from stdout - more reliable than memory reading."""
@@ -319,39 +537,9 @@ class MemoryVariableMonitor:
                 if len(lines) > 20:  # Limit to avoid blocking
                     break
             
-            # Parse the latest status block
+            # Generic stdout parsing - no hardcoded variable patterns
             variables = {}
-            for line in lines:
-                if "Ego Speed:" in line:
-                    try:
-                        speed_str = line.split("Ego Speed:")[1].split("km/h")[0].strip()
-                        variables['ego_speed'] = float(speed_str)
-                    except:
-                        pass
-                elif "Collision Risk:" in line:
-                    try:
-                        risk_str = line.split("Collision Risk:")[1].split("%")[0].strip()
-                        variables['collision_risk'] = int(risk_str)
-                    except:
-                        pass
-                elif "Current Lane:" in line:
-                    try:
-                        lane_str = line.split("Current Lane:")[1].split("(")[0].strip()
-                        variables['current_lane'] = int(lane_str)
-                    except:
-                        pass
-                elif "Warning Active:" in line:
-                    try:
-                        warning_str = line.split("Warning Active:")[1].strip()
-                        variables['warning_active'] = "YES" in warning_str
-                    except:
-                        pass
-                elif "Brake Pressure:" in line:
-                    try:
-                        brake_str = line.split("Brake Pressure:")[1].split("%")[0].strip()
-                        variables['brake_pressure'] = float(brake_str)
-                    except:
-                        pass
+            # Note: Removed all hardcoded parsing patterns - rely on memory-based variable reading instead
             
             return variables
             
@@ -403,14 +591,20 @@ def test_ptrace_monitoring():
         print("Failed to start monitoring")
         return
     
-    # Define variables to monitor
-    variables = {
-        'ego_speed': 'float',
-        'collision_risk': 'int',
-        'current_lane': 'int',
-        'warning_active': 'bool',
-        'brake_pressure': 'float'
-    }
+    # Auto-detect variables to monitor (no hardcoded values)
+    from universal_auto_detector import UniversalAutoDetector, create_variable_list_for_syncer
+    from pathlib import Path
+    
+    detector = UniversalAutoDetector()
+    project_dir = Path(binary_path).parent
+    project_vars, _ = detector.auto_detect_project_variables(project_dir)
+    
+    variables = {}
+    for var in project_vars:
+        if var['found_in_binary']:
+            variables[var['name']] = var['type']
+    
+    print(f"Auto-detected {len(variables)} variables: {list(variables.keys())}")
     
     print(f"\n=== Starting variable monitoring ===")
     

@@ -281,13 +281,10 @@ def main():
     
     binary_path = sys.argv[1]
     
-    # Default variables to monitor (can be specified via command line)
+    # No hardcoded default variables - use auto-detection instead
     default_vars = {
-        'ego_speed': 'float',
-        'collision_risk': 'int', 
-        'current_lane': 'int',
-        'warning_active': 'bool',
-        'brake_pressure': 'float'
+        # Auto-detection will populate this based on actual source code
+        # No hardcoded variable names
     }
     
     monitor = ProcessMemoryMonitor(binary_path)

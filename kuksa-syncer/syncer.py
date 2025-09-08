@@ -87,7 +87,7 @@ sio = socketio.AsyncClient()
 
 client = VSSClient(BORKER_IP, BROKER_PORT)
 
-mock_signal_path = "/home/dev/ws/mock/signals.json"
+mock_signal_path = "/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/mock/signals.json"
 
 def is_process_running_nix(process_name):
     """Check if a process with the given name is running on Linux/macOS."""
@@ -538,16 +538,21 @@ async def messageToKit(data):
                     # Get watch_vars from data if present
                     watch_vars = data["data"].get("watch_vars", "")
                     
-                    # Fallback: If no watch variables specified, default to common variables
+                    # NO HARDCODED FALLBACK - Use automatic detection in cpp_memory_debugger
                     if not watch_vars or not watch_vars.strip():
-                        watch_vars = "counter,sensor_value,ego_speed,collision_risk,current_lane,warning_active,brake_pressure"
-                        print(f"No watch variables specified, using defaults: {watch_vars}", flush=True)
+                        watch_vars = ""  # Empty string triggers automatic detection
+                        print(f"No watch variables specified, automatic detection will be used", flush=True)
                     else:
                         print(f"Watch vars from frontend: {watch_vars}", flush=True)
                     
-                    if watch_vars is not None and watch_vars.strip():
-                        print(f"Starting C++ memory monitoring task for variables: {watch_vars}")
-                        await send_reply(from_id, f"Monitoring variables: {watch_vars}\r\n", is_done=False, retcode=0, cmd=data["cmd"])
+                    # Start monitoring regardless of watch_vars (empty triggers auto-detection)
+                    if watch_vars is not None:
+                        if watch_vars.strip():
+                            print(f"Starting C++ memory monitoring task for variables: {watch_vars}")
+                            await send_reply(from_id, f"Monitoring variables: {watch_vars}\r\n", is_done=False, retcode=0, cmd=data["cmd"])
+                        else:
+                            print("Starting C++ memory monitoring with automatic variable detection")
+                            await send_reply(from_id, "Starting automatic variable detection and monitoring...\r\n", is_done=False, retcode=0, cmd=data["cmd"])
                         
                         # Create completion callback to remove from running list
                         def cpp_completion_callback(kit_id):
@@ -755,6 +760,53 @@ async def messageToKit(data):
         if not cpp_stopped and not python_stopped:
             await send_reply(from_id, "No processes found to stop\r\n", is_done=True, retcode=0)
         
+        return 0
+    
+    elif data["cmd"] == "trace_vars" and CPP_MEMORY_AVAILABLE:
+        print(f"🔥 SYNCER: trace_vars command received")
+        request_from = data["request_from"]
+        
+        try:
+            # Start C++ memory monitoring with trace_vars
+            await cpp_debugger_util.start_cpp_trace_vars_monitoring(
+                data, request_from, sio
+            )
+            
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": request_from,
+                "cmd": "trace_vars",
+                "result": "trace_vars monitoring started successfully",
+                "isDone": False,
+                "code": 0
+            })
+            
+        except Exception as e:
+            print(f"🔥 trace_vars error: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": request_from,
+                "cmd": "trace_vars",
+                "result": f"trace_vars failed: {str(e)}",
+                "isDone": True,
+                "code": 1
+            })
+        
+        return 0
+    
+    elif data["cmd"] == "trace_vars":
+        # trace_vars requested but CPP memory monitoring not available
+        await sio.emit("messageToKit-kitReply", {
+            "kit_id": CLIENT_ID,
+            "request_from": data["request_from"],
+            "cmd": "trace_vars",
+            "result": "Error: C++ memory monitoring not available",
+            "isDone": True,
+            "code": 1
+        })
         return 0
     
     elif data["cmd"] == "get-runtime-info":
