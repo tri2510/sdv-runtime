@@ -489,7 +489,7 @@ def cleanup_memory_monitor():
     except Exception as e:
         print(f"Error cleaning up auto memory monitor: {e}")
 
-async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_reply_func=None):
+async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_reply_func=None, completion_callback=None):
     """Send periodic variable reports and stdout forwarding via ptrace memory inspection with stdout capture."""
     global ptrace_monitor
     
@@ -692,6 +692,14 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
         })
         
         cleanup_memory_monitor()
+        
+        # Execute completion callback if provided (e.g., remove from running list)
+        if completion_callback:
+            try:
+                completion_callback(kit_id)
+                print(f"✅ Completion callback executed for kit {kit_id}")
+            except Exception as e:
+                print(f"Error in completion callback: {e}")
 
 def is_process_running(pid=None):
     """Check if monitored process is running."""
