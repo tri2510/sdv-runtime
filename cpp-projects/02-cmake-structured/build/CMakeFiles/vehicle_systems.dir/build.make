@@ -83,49 +83,17 @@ CMakeFiles/vehicle_systems.dir/src/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/vehicle_systems.dir/src/main.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/src/main.cpp -o CMakeFiles/vehicle_systems.dir/src/main.cpp.s
 
-CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o: CMakeFiles/vehicle_systems.dir/flags.make
-CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o: ../src/VehicleController.cpp
-CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o: CMakeFiles/vehicle_systems.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o -MF CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o.d -o CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o -c /home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/src/VehicleController.cpp
-
-CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/src/VehicleController.cpp > CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.i
-
-CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/src/VehicleController.cpp -o CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.s
-
-CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o: CMakeFiles/vehicle_systems.dir/flags.make
-CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o: ../src/SensorManager.cpp
-CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o: CMakeFiles/vehicle_systems.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o -MF CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o.d -o CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o -c /home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/src/SensorManager.cpp
-
-CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/src/SensorManager.cpp > CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.i
-
-CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/src/SensorManager.cpp -o CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.s
-
 # Object files for target vehicle_systems
 vehicle_systems_OBJECTS = \
-"CMakeFiles/vehicle_systems.dir/src/main.cpp.o" \
-"CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o" \
-"CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o"
+"CMakeFiles/vehicle_systems.dir/src/main.cpp.o"
 
 # External object files for target vehicle_systems
 vehicle_systems_EXTERNAL_OBJECTS =
 
 vehicle_systems: CMakeFiles/vehicle_systems.dir/src/main.cpp.o
-vehicle_systems: CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o
-vehicle_systems: CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o
 vehicle_systems: CMakeFiles/vehicle_systems.dir/build.make
 vehicle_systems: CMakeFiles/vehicle_systems.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable vehicle_systems"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable vehicle_systems"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/vehicle_systems.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

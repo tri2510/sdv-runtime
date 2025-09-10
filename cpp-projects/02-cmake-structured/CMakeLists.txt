@@ -11,11 +11,9 @@ set(CMAKE_BUILD_TYPE Debug)
 # Include directories
 include_directories(include)
 
-# Source files
+# Source files - Only main.cpp with global variables
 set(SOURCES
     src/main.cpp
-    src/VehicleController.cpp
-    src/SensorManager.cpp
 )
 
 # Create executable

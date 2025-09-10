@@ -1,8 +1,4 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o"
-  "CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o.d"
-  "CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o"
-  "CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o.d"
   "CMakeFiles/vehicle_systems.dir/src/main.cpp.o"
   "CMakeFiles/vehicle_systems.dir/src/main.cpp.o.d"
   "vehicle_systems"

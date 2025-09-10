@@ -129,54 +129,6 @@ vehicle_systems/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vehicle_systems.dir/build.make CMakeFiles/vehicle_systems.dir/build
 .PHONY : vehicle_systems/fast
 
-src/SensorManager.o: src/SensorManager.cpp.o
-.PHONY : src/SensorManager.o
-
-# target to build an object file
-src/SensorManager.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/vehicle_systems.dir/build.make CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.o
-.PHONY : src/SensorManager.cpp.o
-
-src/SensorManager.i: src/SensorManager.cpp.i
-.PHONY : src/SensorManager.i
-
-# target to preprocess a source file
-src/SensorManager.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/vehicle_systems.dir/build.make CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.i
-.PHONY : src/SensorManager.cpp.i
-
-src/SensorManager.s: src/SensorManager.cpp.s
-.PHONY : src/SensorManager.s
-
-# target to generate assembly for a file
-src/SensorManager.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/vehicle_systems.dir/build.make CMakeFiles/vehicle_systems.dir/src/SensorManager.cpp.s
-.PHONY : src/SensorManager.cpp.s
-
-src/VehicleController.o: src/VehicleController.cpp.o
-.PHONY : src/VehicleController.o
-
-# target to build an object file
-src/VehicleController.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/vehicle_systems.dir/build.make CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.o
-.PHONY : src/VehicleController.cpp.o
-
-src/VehicleController.i: src/VehicleController.cpp.i
-.PHONY : src/VehicleController.i
-
-# target to preprocess a source file
-src/VehicleController.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/vehicle_systems.dir/build.make CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.i
-.PHONY : src/VehicleController.cpp.i
-
-src/VehicleController.s: src/VehicleController.cpp.s
-.PHONY : src/VehicleController.s
-
-# target to generate assembly for a file
-src/VehicleController.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/vehicle_systems.dir/build.make CMakeFiles/vehicle_systems.dir/src/VehicleController.cpp.s
-.PHONY : src/VehicleController.cpp.s
-
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -210,12 +162,6 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... vehicle_systems"
-	@echo "... src/SensorManager.o"
-	@echo "... src/SensorManager.i"
-	@echo "... src/SensorManager.s"
-	@echo "... src/VehicleController.o"
-	@echo "... src/VehicleController.i"
-	@echo "... src/VehicleController.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
