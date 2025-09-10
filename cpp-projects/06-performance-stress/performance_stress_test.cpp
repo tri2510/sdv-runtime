@@ -137,7 +137,10 @@ public:
         steering_wheel_angle.store(sin(cycle * 0.0001f) * 90.0f + noise_dist(rng));
         
         // Shared accumulator (simulates inter-thread communication)
-        shared_accumulator.fetch_add(error * error); // Add squared error
+        double current = shared_accumulator.load();
+        while (!shared_accumulator.compare_exchange_weak(current, current + error * error)) {
+            // Retry if CAS fails
+        }
         
         // Thread synchronization
         if (cycle % 1000 == 0) {
@@ -199,7 +202,10 @@ void workerThread(HighFrequencyMonitor& monitor, int thread_id) {
     
     for (int i = 0; i < 1000; ++i) {
         // Simulate additional load on shared variables
-        monitor.shared_accumulator.fetch_add(thread_id * 0.1);
+        double current = monitor.shared_accumulator.load();
+        while (!monitor.shared_accumulator.compare_exchange_weak(current, current + thread_id * 0.1)) {
+            // Retry if CAS fails
+        }
         monitor.thread_barrier_counter.fetch_add(1);
         
         // Add some computation to stress the system

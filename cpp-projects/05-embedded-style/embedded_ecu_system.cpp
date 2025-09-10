@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <atomic>
 #include <cstring>
+#include <cmath>
 
 // Embedded ECU-style programming with fixed-point arithmetic
 // Typical for automotive microcontrollers
