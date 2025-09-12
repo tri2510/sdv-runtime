@@ -1,0 +1,47 @@
+[ 50%] Building CXX object CMakeFiles/basic_monitoring.dir/main.cpp.o
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp: In function ‘void signal_handler(int)’:
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:28:25: warning: unused parameter ‘signal’ [-Wunused-parameter]
+   28 | void signal_handler(int signal) {
+      |                     ~~~~^~~~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp: In function ‘void monitoring_thread()’:
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:96:63: error: ‘setprecision’ is not a member of ‘std’
+   96 |         std::cout << "  Temperature:  " << std::fixed << std::setprecision(1)
+      |                                                               ^~~~~~~~~~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:13:1: note: ‘std::setprecision’ is defined in header ‘<iomanip>’; did you forget to ‘#include <iomanip>’?
+   12 | #include <signal.h>
+  +++ |+#include <iomanip>
+   13 | #include <unistd.h>
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:98:63: error: ‘setprecision’ is not a member of ‘std’
+   98 |         std::cout << "  Pressure:     " << std::fixed << std::setprecision(1)
+      |                                                               ^~~~~~~~~~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:98:63: note: ‘std::setprecision’ is defined in header ‘<iomanip>’; did you forget to ‘#include <iomanip>’?
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:100:63: error: ‘setprecision’ is not a member of ‘std’
+  100 |         std::cout << "  Humidity:     " << std::fixed << std::setprecision(1)
+      |                                                               ^~~~~~~~~~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:100:63: note: ‘std::setprecision’ is defined in header ‘<iomanip>’; did you forget to ‘#include <iomanip>’?
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:111:63: error: ‘setprecision’ is not a member of ‘std’
+  111 |         std::cout << "  Voltage:      " << std::fixed << std::setprecision(2)
+      |                                                               ^~~~~~~~~~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:111:63: note: ‘std::setprecision’ is defined in header ‘<iomanip>’; did you forget to ‘#include <iomanip>’?
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:113:63: error: ‘setprecision’ is not a member of ‘std’
+  113 |         std::cout << "  Current:      " << std::fixed << std::setprecision(1)
+      |                                                               ^~~~~~~~~~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:113:63: note: ‘std::setprecision’ is defined in header ‘<iomanip>’; did you forget to ‘#include <iomanip>’?
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:115:63: error: ‘setprecision’ is not a member of ‘std’
+  115 |         std::cout << "  Power:        " << std::fixed << std::setprecision(1)
+      |                                                               ^~~~~~~~~~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:115:63: note: ‘std::setprecision’ is defined in header ‘<iomanip>’; did you forget to ‘#include <iomanip>’?
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp: In function ‘int main(int, char**)’:
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:164:14: warning: unused parameter ‘argc’ [-Wunused-parameter]
+  164 | int main(int argc, char* argv[]) {
+      |          ~~~~^~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:164:26: warning: unused parameter ‘argv’ [-Wunused-parameter]
+  164 | int main(int argc, char* argv[]) {
+      |                    ~~~~~~^~~~~~
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp: In function ‘void monitoring_thread()’:
+/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/integration-tests/sample-basic-monitoring/main.cpp:89:15: warning: ignoring return value of ‘int system(const char*)’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+   89 |         system("clear");
+      |         ~~~~~~^~~~~~~~~
+make[2]: *** [CMakeFiles/basic_monitoring.dir/build.make:76: CMakeFiles/basic_monitoring.dir/main.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:83: CMakeFiles/basic_monitoring.dir/all] Error 2
+make: *** [Makefile:136: all] Error 2

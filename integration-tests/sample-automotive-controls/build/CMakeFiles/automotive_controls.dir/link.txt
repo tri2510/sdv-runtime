@@ -1,0 +1,1 @@
+/usr/bin/c++ -Wall -Wextra -pthread -O3 CMakeFiles/automotive_controls.dir/main.cpp.o -o automotive_controls  -lpthread 
