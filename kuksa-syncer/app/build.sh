@@ -1,11 +1,11 @@
 #!/bin/bash
 
-echo "Building Complex Vehicle System Monitor..."
-g++ -g -O0 -std=c++17 -pthread -o complex_vehicle_system complex_vehicle_system.cpp
+echo "Building Embedded ECU System Monitor..."
+g++ -g -O0 -std=c++17 -pthread -o embedded_ecu_system embedded_ecu_system.cpp
 
 if [ $? -eq 0 ]; then
-    echo "Build successful! Executable: complex_vehicle_system"
-    echo "Run with: ./complex_vehicle_system"
+    echo "Build successful! Executable: embedded_ecu_system"
+    echo "Run with: ./embedded_ecu_system"
 else
     echo "Build failed!"
     exit 1

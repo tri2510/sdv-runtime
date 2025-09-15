@@ -46,12 +46,23 @@ class AutoVariableDetector:
             'atomic_size_t': (r'std::atomic<size_t>\s+(\w+)', 'size_t', 8),  # Usually 8 bytes on 64-bit
             'atomic_intptr_t': (r'std::atomic<intptr_t>\s+(\w+)', 'intptr_t', 8),
             'atomic_uintptr_t': (r'std::atomic<uintptr_t>\s+(\w+)', 'uintptr_t', 8),
-            
+
+            # Embedded/Fixed-point atomic types (Q notation)
+            'atomic_q15_t': (r'std::atomic<q15_t>\s+(\w+)', 'q15_t', 2),  # Q15 fixed-point (16-bit)
+            'atomic_q31_t': (r'std::atomic<q31_t>\s+(\w+)', 'q31_t', 4),  # Q31 fixed-point (32-bit)
+
+            # Common embedded typedef patterns
+            'atomic_custom_type': (r'std::atomic<(\w+_t)>\s+(\w+)', 'custom_typedef', 0),  # Generic typedef pattern
+
             # Regular (non-atomic) types for completeness
             'int_var': (r'\bint\s+(\w+)', 'int', 4),
             'float_var': (r'\bfloat\s+(\w+)', 'float', 4),
             'double_var': (r'\bdouble\s+(\w+)', 'double', 8),
             'bool_var': (r'\bbool\s+(\w+)', 'bool', 1),
+
+            # Regular embedded types
+            'q15_t_var': (r'\bq15_t\s+(\w+)', 'q15_t', 2),
+            'q31_t_var': (r'\bq31_t\s+(\w+)', 'q31_t', 4),
         }
     
     def extract_variables_from_source(self, cpp_code: str) -> List[Dict[str, Any]]:
@@ -60,15 +71,35 @@ class AutoVariableDetector:
         
         for pattern_name, (regex, var_type, size_bytes) in self.variable_patterns.items():
             matches = re.findall(regex, cpp_code)
-            for var_name in matches:
+            for match in matches:
+                # Handle different regex patterns - some return tuples, some single strings
+                if pattern_name == 'atomic_custom_type' and isinstance(match, tuple):
+                    # For custom type pattern: (type_name, var_name)
+                    custom_type, var_name = match
+                    actual_type = custom_type
+                    # Try to infer size from type name
+                    if '16' in custom_type or 'q15' in custom_type:
+                        actual_size = 2
+                    elif '32' in custom_type or 'q31' in custom_type:
+                        actual_size = 4
+                    elif '8' in custom_type:
+                        actual_size = 1
+                    else:
+                        actual_size = 4  # Default
+                else:
+                    # Regular pattern returns just variable name
+                    var_name = match if isinstance(match, str) else match
+                    actual_type = var_type
+                    actual_size = size_bytes
+
                 # Skip common keywords and function names
                 if var_name.lower() in ['main', 'return', 'if', 'for', 'while', 'do']:
                     continue
-                    
+
                 detected_vars.append({
                     'name': var_name,
-                    'type': var_type,
-                    'size_bytes': size_bytes,
+                    'type': actual_type,
+                    'size_bytes': actual_size,
                     'pattern': pattern_name,
                     'is_atomic': 'atomic' in pattern_name
                 })
