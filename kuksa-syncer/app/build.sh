@@ -1,18 +1,11 @@
 #!/bin/bash
 
-echo "Building CMake Vehicle Systems Monitor..."
-
-# Create build directory if it doesn't exist
-mkdir -p build
-cd build
-
-# Configure and build with CMake
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-make -j$(nproc)
+echo "Building Complex Vehicle System Monitor..."
+g++ -g -O0 -std=c++17 -pthread -o complex_vehicle_system complex_vehicle_system.cpp
 
 if [ $? -eq 0 ]; then
-    echo "Build successful! Executable: build/vehicle_systems"
-    echo "Run with: cd build && ./vehicle_systems"
+    echo "Build successful! Executable: complex_vehicle_system"
+    echo "Run with: ./complex_vehicle_system"
 else
     echo "Build failed!"
     exit 1
