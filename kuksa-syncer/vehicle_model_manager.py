@@ -9,6 +9,14 @@
 import os
 import subprocess
 import shutil
+import sys
+
+# Add the vehicle-model-generator src directory to Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+vehicle_model_generator_src = os.path.join(current_dir, '..', 'vehicle-model-generator', 'src')
+if os.path.exists(vehicle_model_generator_src):
+    sys.path.insert(0, vehicle_model_generator_src)
+
 from velocitas.model_generator import generate_model
 import json
 import signal

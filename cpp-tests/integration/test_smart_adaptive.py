@@ -5,7 +5,12 @@ Test smart adaptive syncer with cmake-multidir project
 import asyncio
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+from pathlib import Path
+
+# Add kuksa-syncer to path for imports
+current_dir = Path(__file__).parent
+kuksa_syncer_path = current_dir.parent.parent / "kuksa-syncer"
+sys.path.insert(0, str(kuksa_syncer_path))
 
 import cpp_memory_debugger as cpp_debugger_util
 
