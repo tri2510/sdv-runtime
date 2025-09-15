@@ -10,25 +10,25 @@
 // Vehicle Control System Global Variables
 std::atomic<float> target_speed{0.0f};
 std::atomic<float> actual_speed{0.0f};
-std::atomic<int16_t> throttle_position{0}; // 0-1000 (0-100.0%)
-std::atomic<int16_t> brake_pressure{0};    // 0-1000 bar scaled
+std::atomic<int> throttle_position{0}; // 0-1000 (0-100.0%)
+std::atomic<int> brake_pressure{0};    // 0-1000 bar scaled
 std::atomic<bool> cruise_control_active{false};
 std::atomic<bool> abs_active{false};
 std::atomic<bool> esp_active{false};
 
 // Engine Control Global Variables
-std::atomic<uint16_t> engine_rpm{0};
-std::atomic<uint8_t> engine_load{0};  // 0-100%
-std::atomic<int8_t> engine_temp{0};   // Celsius
+std::atomic<int> engine_rpm{0};
+std::atomic<char> engine_load{0};  // 0-100%
+std::atomic<char> engine_temp{0};   // Celsius
 
 // Transmission Global Variables
-std::atomic<uint8_t> gear_number{0};  // 0=Park, 1-8=Forward gears
+std::atomic<char> gear_number{0};  // 0=Park, 1-8=Forward gears
 std::atomic<bool> transmission_locked{false};
 
 // Sensor System Global Variables
 std::atomic<float> gps_latitude{0.0f};
 std::atomic<float> gps_longitude{0.0f};
-std::atomic<int16_t> gps_altitude{0};
+std::atomic<int> gps_altitude{0};
 std::atomic<float> imu_accel_x{0.0f};
 std::atomic<float> imu_accel_y{0.0f};
 std::atomic<float> imu_accel_z{0.0f};
@@ -37,20 +37,20 @@ std::atomic<float> imu_gyro_y{0.0f};
 std::atomic<float> imu_gyro_z{0.0f};
 
 // TPMS (Tire Pressure Monitoring System) Global Variables
-std::atomic<uint16_t> tire_pressure_fl{0};  // Front-left in kPa
-std::atomic<uint16_t> tire_pressure_fr{0};  // Front-right
-std::atomic<uint16_t> tire_pressure_rl{0};  // Rear-left  
-std::atomic<uint16_t> tire_pressure_rr{0};  // Rear-right
-std::atomic<int8_t> tire_temp_fl{0};
-std::atomic<int8_t> tire_temp_fr{0};
-std::atomic<int8_t> tire_temp_rl{0};
-std::atomic<int8_t> tire_temp_rr{0};
+std::atomic<int> tire_pressure_fl{0};  // Front-left in kPa
+std::atomic<int> tire_pressure_fr{0};  // Front-right
+std::atomic<int> tire_pressure_rl{0};  // Rear-left
+std::atomic<int> tire_pressure_rr{0};  // Rear-right
+std::atomic<char> tire_temp_fl{0};
+std::atomic<char> tire_temp_fr{0};
+std::atomic<char> tire_temp_rl{0};
+std::atomic<char> tire_temp_rr{0};
 
 // Battery Management System Global Variables
 std::atomic<float> battery_voltage{0.0f};
 std::atomic<float> battery_current{0.0f};
-std::atomic<uint8_t> battery_soc{0};  // State of charge %
-std::atomic<int8_t> battery_temp{0};
+std::atomic<char> battery_soc{0};  // State of charge %
+std::atomic<char> battery_temp{0};
 
 void updateVehicleController() {
     static int cycle = 0;

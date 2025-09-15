@@ -9,11 +9,11 @@
 // Embedded ECU-style programming with fixed-point arithmetic
 // Global variables for demonstrating ptrace monitoring in embedded systems
 
-// Fixed-point types (Q notation)
-typedef int16_t q15_t;  // Q15 fixed-point: 1 sign + 15 fractional bits
-typedef int32_t q31_t;  // Q31 fixed-point: 1 sign + 31 fractional bits
+// Fixed-point types (Q notation) - simplified to basic types
+typedef int q15_t;  // Q15 fixed-point: simplified to int
+typedef int q31_t;  // Q31 fixed-point: simplified to int
 
-// Fixed-point conversion macros
+// Fixed-point conversion macros - simplified
 #define FLOAT_TO_Q15(x) ((q15_t)((x) * 32768.0f))
 #define Q15_TO_FLOAT(x) (((float)(x)) / 32768.0f)
 #define FLOAT_TO_Q31(x) ((q31_t)((x) * 2147483648.0f))
@@ -31,31 +31,31 @@ std::atomic<q15_t> ignition_advance_q15{0};       // degrees BTDC
 std::atomic<q15_t> idle_air_control_q15{0};       // 0.0-1.0 duty cycle
 
 // Global ECU variables - Packed status registers
-std::atomic<uint16_t> status_reg1_raw{0};
-std::atomic<uint8_t> status_reg2_raw{0};
+std::atomic<int> status_reg1_raw{0};
+std::atomic<char> status_reg2_raw{0};
 
 // Global ECU variables - Communication counters (typical CAN/LIN)
-std::atomic<uint32_t> can_tx_counter{0};
-std::atomic<uint32_t> can_rx_counter{0};
-std::atomic<uint16_t> can_error_counter{0};
-std::atomic<uint8_t> lin_frame_counter{0};
+std::atomic<int> can_tx_counter{0};
+std::atomic<int> can_rx_counter{0};
+std::atomic<int> can_error_counter{0};
+std::atomic<char> lin_frame_counter{0};
 
 // Global ECU variables - Diagnostic trouble codes (DTCs)
-std::atomic<uint16_t> active_dtc_count{0};
-std::atomic<uint32_t> dtc_p0xxx{0};  // Powertrain DTCs
-std::atomic<uint32_t> dtc_b0xxx{0};  // Body DTCs
-std::atomic<uint32_t> dtc_c0xxx{0};  // Chassis DTCs
-std::atomic<uint32_t> dtc_u0xxx{0};  // Network DTCs
+std::atomic<int> active_dtc_count{0};
+std::atomic<int> dtc_p0xxx{0};  // Powertrain DTCs
+std::atomic<int> dtc_b0xxx{0};  // Body DTCs
+std::atomic<int> dtc_c0xxx{0};  // Chassis DTCs
+std::atomic<int> dtc_u0xxx{0};  // Network DTCs
 
 // Global ECU variables - Timing and scheduling (typical RTOS variables)
-std::atomic<uint32_t> main_loop_counter{0};
-std::atomic<uint16_t> task_execution_time_us{0};
-std::atomic<uint8_t> cpu_load_percent{0};
+std::atomic<int> main_loop_counter{0};
+std::atomic<int> task_execution_time_us{0};
+std::atomic<char> cpu_load_percent{0};
 
 // Global ECU variables - Memory management
-std::atomic<uint16_t> stack_usage_bytes{0};
-std::atomic<uint16_t> heap_usage_bytes{0};
-std::atomic<uint8_t> memory_fragmentation_percent{0};
+std::atomic<int> stack_usage_bytes{0};
+std::atomic<int> heap_usage_bytes{0};
+std::atomic<char> memory_fragmentation_percent{0};
 
 void updateECUState(int cycle) {
     // Update throttle position (sine wave)
@@ -85,7 +85,7 @@ void updateECUState(int cycle) {
     idle_air_control_q15.store(FLOAT_TO_Q15(idle_control));
     
     // Pack status registers (typical embedded bitfield packing)
-    uint16_t status1 = 0;
+    int status1 = 0;
     status1 |= (1 << 0);  // engine_running
     status1 |= (cycle % 10 < 8) ? (1 << 1) : 0;  // fuel_pump_on
     status1 |= (cycle % 100 < 5) ? (1 << 2) : 0;  // starter_engaged
@@ -96,7 +96,7 @@ void updateECUState(int cycle) {
     status1 |= (cycle % 20 > 2) ? (1 << 7) : 0;  // alternator_charging
     status_reg1_raw.store(status1);
     
-    uint8_t status2 = 0;
+    char status2 = 0;
     status2 |= ((cycle / 100) % 8) & 0x0F;  // gear_position
     status2 |= (cycle % 50 < 5) ? (1 << 4) : 0;  // abs_active
     status2 |= (cycle % 60 < 3) ? (1 << 5) : 0;  // traction_control
@@ -141,7 +141,7 @@ void printECUStatus() {
     std::cout << "Fuel Injection: " << Q15_TO_FLOAT(fuel_injection_time_q15.load()) * 20 << " ms" << std::endl;
     
     // Display status registers
-    uint16_t status1 = status_reg1_raw.load();
+    int status1 = status_reg1_raw.load();
     std::cout << "Engine: " << ((status1 & 0x01) ? "Running" : "Stopped") << std::endl;
     std::cout << "Oil Pressure: " << ((status1 & 0x10) ? "OK" : "Low") << std::endl;
     

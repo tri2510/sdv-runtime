@@ -5,8 +5,9 @@
 #include <cmath>
 #include <random>
 
-// Performance stress test with global variables
+// Performance stress test with global variables - SDV minimal types
 // High-frequency updates demonstrating ptrace monitoring under load
+// CONSTRAINT: Only atomic<int>, atomic<char>, atomic<float>, atomic<double>, atomic<bool>
 
 // Global PID control variables (1kHz+ updates)
 std::atomic<float> pid_setpoint{50.0f};
@@ -21,32 +22,32 @@ std::atomic<float> sensor_temp_1{25.0f};
 std::atomic<float> sensor_temp_2{26.5f};
 std::atomic<float> sensor_temp_3{24.8f};
 std::atomic<float> sensor_temp_4{27.2f};
-std::atomic<uint32_t> sensor_pressure_1{101325};
-std::atomic<uint32_t> sensor_pressure_2{101400};
-std::atomic<uint32_t> sensor_pressure_3{101280};
-std::atomic<uint32_t> sensor_pressure_4{101350};
-std::atomic<int32_t> sensor_position_1{0};
-std::atomic<int32_t> sensor_position_2{1000};
-std::atomic<int32_t> sensor_position_3{-500};
-std::atomic<int32_t> sensor_position_4{750};
+std::atomic<int> sensor_pressure_1{101325};   // Changed from uint32_t
+std::atomic<int> sensor_pressure_2{101400};   // Changed from uint32_t
+std::atomic<int> sensor_pressure_3{101280};   // Changed from uint32_t
+std::atomic<int> sensor_pressure_4{101350};   // Changed from uint32_t
+std::atomic<int> sensor_position_1{0};        // Changed from int32_t
+std::atomic<int> sensor_position_2{1000};     // Changed from int32_t
+std::atomic<int> sensor_position_3{-500};     // Changed from int32_t
+std::atomic<int> sensor_position_4{750};      // Changed from int32_t
 
 // Global rapid-changing counters
-std::atomic<uint64_t> high_freq_counter{0};
-std::atomic<uint32_t> interrupt_counter{0};
-std::atomic<uint16_t> timer_overflow_count{0};
-std::atomic<uint8_t> state_machine_state{0};
+std::atomic<int> high_freq_counter{0};        // Changed from uint64_t
+std::atomic<int> interrupt_counter{0};        // Changed from uint32_t
+std::atomic<int> timer_overflow_count{0};     // Changed from uint16_t
+std::atomic<char> state_machine_state{0};     // Changed from uint8_t
 
 // Global performance metrics
-std::atomic<uint64_t> total_updates{0};
-std::atomic<uint32_t> updates_per_second{0};
+std::atomic<int> total_updates{0};            // Changed from uint64_t
+std::atomic<int> updates_per_second{0};       // Changed from uint32_t
 std::atomic<float> cpu_utilization{0.0f};
-std::atomic<uint16_t> max_loop_time_us{0};
-std::atomic<uint16_t> min_loop_time_us{65535};
+std::atomic<int> max_loop_time_us{0};         // Changed from uint16_t
+std::atomic<int> min_loop_time_us{65535};     // Changed from uint16_t
 
 // Global multi-threaded shared variables
 std::atomic<double> shared_accumulator{0.0};
 std::atomic<bool> thread_sync_flag{false};
-std::atomic<uint32_t> thread_barrier_counter{0};
+std::atomic<int> thread_barrier_counter{0};   // Changed from uint32_t
 
 // Global vehicle dynamics variables (high-rate updates)
 std::atomic<float> wheel_speed_fl{0.0f};  // Front-left
@@ -59,17 +60,17 @@ std::atomic<float> yaw_rate{0.0f};
 std::atomic<float> steering_wheel_angle{0.0f};
 
 // Global timing and performance variables
-std::atomic<uint64_t> microsecond_timer{0};
-std::atomic<uint32_t> performance_score{1000};
+std::atomic<int> microsecond_timer{0};
+std::atomic<int> performance_score{1000};
 std::atomic<float> jitter_measurement{0.0f};
-std::atomic<uint16_t> cache_miss_count{0};
-std::atomic<uint32_t> context_switch_count{0};
+std::atomic<int> cache_miss_count{0};
+std::atomic<int> context_switch_count{0};
 
 // Random number generator
 thread_local std::mt19937 rng{std::random_device{}()};
 thread_local std::uniform_real_distribution<float> noise_dist{-0.1f, 0.1f};
 
-void highFrequencyUpdate(uint64_t cycle) {
+void highFrequencyUpdate(int cycle) {
     // PID controller simulation
     float error = pid_setpoint.load() - pid_process_value.load();
     pid_error.store(error);
@@ -105,15 +106,15 @@ void highFrequencyUpdate(uint64_t cycle) {
     sensor_temp_3.store(24.8f + 12.0f * sin(cycle * 0.0008f) + noise_dist(rng));
     sensor_temp_4.store(27.2f + 6.0f * cos(cycle * 0.0012f) + noise_dist(rng));
     
-    sensor_pressure_1.store(101325 + static_cast<uint32_t>(500 * sin(cycle * 0.002f)));
-    sensor_pressure_2.store(101400 + static_cast<uint32_t>(300 * cos(cycle * 0.0025f)));
-    sensor_pressure_3.store(101280 + static_cast<uint32_t>(400 * sin(cycle * 0.0018f)));
-    sensor_pressure_4.store(101350 + static_cast<uint32_t>(350 * cos(cycle * 0.0022f)));
+    sensor_pressure_1.store(101325 + static_cast<int>(500 * sin(cycle * 0.002f)));
+    sensor_pressure_2.store(101400 + static_cast<int>(300 * cos(cycle * 0.0025f)));
+    sensor_pressure_3.store(101280 + static_cast<int>(400 * sin(cycle * 0.0018f)));
+    sensor_pressure_4.store(101350 + static_cast<int>(350 * cos(cycle * 0.0022f)));
     
-    sensor_position_1.store(static_cast<int32_t>(1000 * sin(cycle * 0.0005f)));
-    sensor_position_2.store(1000 + static_cast<int32_t>(500 * cos(cycle * 0.0008f)));
-    sensor_position_3.store(-500 + static_cast<int32_t>(800 * sin(cycle * 0.0006f)));
-    sensor_position_4.store(750 + static_cast<int32_t>(600 * cos(cycle * 0.0007f)));
+    sensor_position_1.store(static_cast<int>(1000 * sin(cycle * 0.0005f)));
+    sensor_position_2.store(1000 + static_cast<int>(500 * cos(cycle * 0.0008f)));
+    sensor_position_3.store(-500 + static_cast<int>(800 * sin(cycle * 0.0006f)));
+    sensor_position_4.store(750 + static_cast<int>(600 * cos(cycle * 0.0007f)));
     
     // Vehicle dynamics
     wheel_speed_fl.store(50.0f + 20.0f * sin(cycle * 0.0003f) + noise_dist(rng));
@@ -140,7 +141,7 @@ void highFrequencyUpdate(uint64_t cycle) {
 }
 
 void updatePerformanceMetrics(std::chrono::high_resolution_clock::time_point start_time,
-                             uint64_t cycle) {
+                             int cycle) {
     total_updates.fetch_add(1);
     
     // Calculate timing metrics
@@ -150,7 +151,7 @@ void updatePerformanceMetrics(std::chrono::high_resolution_clock::time_point sta
     
     // Update performance metrics every 100 cycles
     if (cycle % 100 == 0) {
-        uint16_t loop_time = static_cast<uint16_t>(elapsed.count() % 10000);
+        int loop_time = static_cast<int>(elapsed.count() % 10000);
         
         if (loop_time > max_loop_time_us.load()) {
             max_loop_time_us.store(loop_time);
@@ -164,7 +165,7 @@ void updatePerformanceMetrics(std::chrono::high_resolution_clock::time_point sta
         cpu_utilization.store(utilization);
         
         // Update performance score
-        uint32_t score = 1000 - static_cast<uint32_t>(utilization * 5);
+        int score = 1000 - static_cast<int>(utilization * 5);
         performance_score.store(score);
         
         // Simulate cache misses and context switches
@@ -172,10 +173,10 @@ void updatePerformanceMetrics(std::chrono::high_resolution_clock::time_point sta
         context_switch_count.fetch_add(cycle % 3);
         
         // Jitter measurement
-        static uint64_t last_time = 0;
-        uint64_t current_time = microsecond_timer.load();
+        static int last_time = 0;
+        int current_time = microsecond_timer.load();
         if (last_time > 0) {
-            int64_t diff = current_time - last_time;
+            int diff = current_time - last_time;
             float jitter = abs(diff - 100) / 100.0f; // Expecting 100μs intervals
             jitter_measurement.store(jitter);
         }
@@ -239,7 +240,7 @@ int main() {
     }
     
     auto start_time = std::chrono::high_resolution_clock::now();
-    uint64_t cycle = 0;
+    int cycle = 0;
     
     while (true) {
         highFrequencyUpdate(cycle);

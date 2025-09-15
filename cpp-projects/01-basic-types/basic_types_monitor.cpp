@@ -4,20 +4,21 @@
 #include <cstdint>
 #include <atomic>
 
-// Global variables for basic automotive monitoring - fundamental types
+// Global variables for basic automotive monitoring - minimal type set
 // Using global variables to demonstrate ptrace memory monitoring capability
+// CONSTRAINT: Only int, float, double, bool, char and their atomic variants
 
-// Fundamental signed integers
-int8_t temperature_offset = 0;
-int16_t steering_angle = 0;
-int32_t odometer_reading = 0;
-int64_t total_engine_runtime = 0;
+// Temperature and position data
+char temperature_offset = 0;      // -128 to +127 range for temperature offset
+int steering_angle = 0;           // steering angle in degrees * 10
+int odometer_reading = 0;         // total distance in meters
+int total_engine_runtime = 0;    // runtime in seconds
 
-// Fundamental unsigned integers  
-uint8_t battery_level = 100;
-uint16_t engine_rpm = 0;
-uint32_t distance_traveled = 0;
-uint64_t microsecond_timestamp = 0;
+// Battery and engine data
+int battery_level = 100;          // 0-100 percentage
+int engine_rpm = 0;              // revolutions per minute
+int distance_traveled = 0;       // distance in meters
+int microsecond_timestamp = 0;   // timestamp (reduced precision)
 
 // Floating point types
 float current_speed = 0.0f;
@@ -35,25 +36,25 @@ bool headlights_on = false;
 char gear_position = 'P';
 char drive_mode = 'D';
 
-// Standard int types
+// Integer types
 int fuel_level = 50;
-long engine_cycles = 0;
-short tire_pressure_psi = 32;
+int engine_cycles = 0;
+int tire_pressure_psi = 32;
 
 void updateValues() {
     static int cycle = 0;
     cycle++;
     
     // Simulate realistic automotive data updates
-    temperature_offset = (cycle % 201) - 100; // -100 to +100
+    temperature_offset = ((cycle % 201) - 100) % 128; // -100 to +100, clamped to char range
     steering_angle = (cycle * 17) % 7200 - 3600; // -360 to +360 degrees * 10
     odometer_reading = cycle * 100;
-    total_engine_runtime = cycle * 1000000LL;
-    
-    battery_level = 100 - (cycle % 90);
+    total_engine_runtime = cycle * 1000; // reduced from microseconds to seconds
+
+    battery_level = 100 - (cycle % 90); // 0-100 range fits in int
     engine_rpm = 800 + (cycle * 73) % 6200;
     distance_traveled = cycle * 10;
-    microsecond_timestamp = cycle * 1000000ULL;
+    microsecond_timestamp = cycle * 1000; // reduced precision for int
     
     current_speed = 20.0f + (cycle % 100) * 0.5f;
     gps_latitude = 37.7749 + (cycle % 1000) * 0.00001;
@@ -69,7 +70,7 @@ void updateValues() {
     drive_mode = "DSME"[cycle % 4];
     
     fuel_level = 100 - (cycle % 95);
-    engine_cycles = cycle * 100L;
+    engine_cycles = cycle * 100;
     tire_pressure_psi = 28 + (cycle % 12);
 }
 
@@ -79,7 +80,7 @@ void printStatus() {
     std::cout << "Steering Angle: " << steering_angle / 10.0 << "°" << std::endl;
     std::cout << "Current Speed: " << current_speed << " mph" << std::endl;
     std::cout << "Engine RPM: " << engine_rpm << std::endl;
-    std::cout << "Battery Level: " << (int)battery_level << "%" << std::endl;
+    std::cout << "Battery Level: " << battery_level << "%" << std::endl;
     std::cout << "Fuel Level: " << fuel_level << "%" << std::endl;
     std::cout << "Gear Position: " << gear_position << std::endl;
     std::cout << "Engine Running: " << (engine_running ? "Yes" : "No") << std::endl;
@@ -88,7 +89,7 @@ void printStatus() {
 
 int main() {
     std::cout << "Starting Basic Types Monitor (Global Variables Demo)" << std::endl;
-    std::cout << "Monitoring " << 25 << " global variables..." << std::endl;
+    std::cout << "Monitoring global variables using minimal type set (int, float, double, bool, char)..." << std::endl;
     
     while (true) {
         updateValues();

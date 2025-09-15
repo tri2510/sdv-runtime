@@ -131,8 +131,8 @@ class PtraceMemoryReader:
                 pass
             return None
     
-    def read_int32(self, address: int) -> Optional[int]:
-        """Read a 32-bit integer from memory, handling atomic<int>."""
+    def read_int(self, address: int) -> Optional[int]:
+        """Read an int from memory, handling atomic<int>."""
         # std::atomic<int> stores the value directly at the address
         data = self.read_memory(address, 4)
         if data and len(data) >= 4:
@@ -140,6 +140,20 @@ class PtraceMemoryReader:
                 value = struct.unpack('<i', data[:4])[0]
                 return value
             except:
+                return None
+        return None
+
+    def read_char(self, address: int) -> Optional[int]:
+        """Read a char from memory, handling atomic<char>."""
+        # char and std::atomic<char> are 1 byte, signed (-128 to +127)
+        data = self.read_memory(address, 1)
+        if data and len(data) >= 1:
+            try:
+                # Convert to signed 8-bit integer using struct
+                value = struct.unpack('<b', data[:1])[0]
+                return value
+            except Exception as e:
+                print(f"Char read error at 0x{address:x}: {e}")
                 return None
         return None
     
@@ -176,6 +190,7 @@ class PtraceMemoryReader:
         if data and len(data) >= 1:
             return data[0] != 0
         return None
+
 
 class MemoryVariableMonitor:
     """High-level variable monitoring using ptrace."""
@@ -374,6 +389,30 @@ class MemoryVariableMonitor:
             print(f"Direct /proc/mem read failed at 0x{address:x}: {e}")
         return None
 
+    def read_char_from_proc_mem(self, address: int) -> Optional[int]:
+        """Read char directly from /proc/pid/mem."""
+        try:
+            # Try to read with os.pread for better permission handling
+            try:
+                import os
+                fd = os.open(f'/proc/{self.process.pid}/mem', os.O_RDONLY)
+                data = os.pread(fd, 1, address)  # 1 byte for char
+                os.close(fd)
+                if len(data) == 1:
+                    value = struct.unpack('b', data)[0]  # signed byte
+                    return value
+            except:
+                # Fallback to regular file reading
+                with open(f'/proc/{self.process.pid}/mem', 'rb') as mem_file:
+                    mem_file.seek(address)
+                    data = mem_file.read(1)  # 1 byte for char
+                    if len(data) == 1:
+                        value = struct.unpack('b', data)[0]  # signed byte
+                        return value
+        except Exception as e:
+            print(f"Direct /proc/mem read failed at 0x{address:x}: {e}")
+        return None
+
     def smart_calculate_runtime_address(self, var_name: str, static_address: int) -> List[int]:
         """Smart address calculation that adapts to any binary's memory layout."""
         candidate_addresses = []
@@ -488,23 +527,39 @@ class MemoryVariableMonitor:
             
             print(f"❌ All SMART methods failed for int {var_name}")
             return None
-        
-        # For other types (double, bool), try smart addressing with ptrace
+
+        # For char values, use direct /proc/pid/mem reading (more reliable than ptrace)
+        if var_type == 'char':
+            print(f"🔄 Reading char {var_name} using SMART /proc/pid/mem method...")
+
+            for i, address in enumerate(candidate_addresses):
+                value = self.read_char_from_proc_mem(address)
+                if value is not None:
+                    print(f"✅ SMART char read succeeded for {var_name}: {value} at 0x{address:x} (method #{i+1})")
+                    return value
+
+            print(f"❌ All SMART methods failed for char {var_name}")
+            return None
+
+        # For other SDV types (double, bool, char), try smart addressing with ptrace
         print(f"🔄 Reading {var_type} {var_name} using SMART ptrace method...")
-        
+
         for i, address in enumerate(candidate_addresses):
             try:
                 if var_type == 'double':
                     value = self.reader.read_double(address)
                 elif var_type == 'bool':
                     value = self.reader.read_bool(address)
+                elif var_type == 'char':
+                    value = self.reader.read_char(address)
                 else:
-                    value = self.reader.read_int32(address)  # Default
-                
+                    # Default to int for unknown types
+                    value = self.reader.read_int(address)
+
                 if value is not None:
                     print(f"✅ SMART {var_type} read succeeded for {var_name}: {value} at 0x{address:x} (method #{i+1})")
                     return value
-                    
+
             except Exception as e:
                 print(f"   ⚠️  Method #{i+1} failed at 0x{address:x}: {e}")
                 continue

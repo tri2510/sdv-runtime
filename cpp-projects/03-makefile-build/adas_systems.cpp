@@ -9,7 +9,7 @@ namespace FCW {
     std::atomic<float> front_distance{50.0f};        // meters
     std::atomic<float> closing_velocity{0.0f};       // m/s
     std::atomic<bool> collision_warning{false};
-    std::atomic<uint8_t> warning_level{0};           // 0-3: None, Low, Medium, High
+    std::atomic<char> warning_level{0};           // 0-3: None, Low, Medium, High
     std::atomic<float> time_to_collision{10.0f};     // seconds
     
     void updateSystem(int cycle) {
@@ -56,7 +56,7 @@ namespace LKA {
     std::atomic<bool> right_lane_detected{true};
     std::atomic<float> steering_torque{0.0f};        // Nm
     std::atomic<bool> lka_active{false};
-    std::atomic<uint8_t> lane_departure_warning{0};  // 0=none, 1=left, 2=right
+    std::atomic<char> lane_departure_warning{0};  // 0=none, 1=left, 2=right
     
     void updateSystem(int cycle) {
         // Simulate lane position drift
@@ -98,7 +98,7 @@ namespace ACC {
     std::atomic<float> target_distance{50.0f};       // meters
     std::atomic<float> actual_distance{55.0f};       // meters
     std::atomic<bool> acc_enabled{true};
-    std::atomic<uint8_t> following_mode{2};          // 1=close, 2=normal, 3=far
+    std::atomic<char> following_mode{2};          // 1=close, 2=normal, 3=far
     std::atomic<float> acceleration_command{0.0f};   // m/s²
     std::atomic<bool> brake_request{false};
     

@@ -18,51 +18,21 @@ class AutoVariableDetector:
     """Automatically detect C++ variables and their types."""
     
     def __init__(self):
+        # SDV minimal type set - only basic types without _t suffix
         self.variable_patterns = {
-            # Basic atomic types
+            # SDV atomic types
             'atomic_int': (r'std::atomic<int>\s+(\w+)', 'int', 4),
-            'atomic_float': (r'std::atomic<float>\s+(\w+)', 'float', 4), 
+            'atomic_char': (r'std::atomic<char>\s+(\w+)', 'char', 1),
+            'atomic_float': (r'std::atomic<float>\s+(\w+)', 'float', 4),
             'atomic_double': (r'std::atomic<double>\s+(\w+)', 'double', 8),
             'atomic_bool': (r'std::atomic<bool>\s+(\w+)', 'bool', 1),
-            
-            # Extended atomic integer types
-            'atomic_int8_t': (r'std::atomic<int8_t>\s+(\w+)', 'int8_t', 1),
-            'atomic_int16_t': (r'std::atomic<int16_t>\s+(\w+)', 'int16_t', 2),
-            'atomic_int32_t': (r'std::atomic<int32_t>\s+(\w+)', 'int32_t', 4),
-            'atomic_int64_t': (r'std::atomic<int64_t>\s+(\w+)', 'int64_t', 8),
-            
-            # Unsigned atomic integer types
-            'atomic_uint8_t': (r'std::atomic<uint8_t>\s+(\w+)', 'uint8_t', 1),
-            'atomic_uint16_t': (r'std::atomic<uint16_t>\s+(\w+)', 'uint16_t', 2),
-            'atomic_uint32_t': (r'std::atomic<uint32_t>\s+(\w+)', 'uint32_t', 4),
-            'atomic_uint64_t': (r'std::atomic<uint64_t>\s+(\w+)', 'uint64_t', 8),
-            
-            # Character atomic types
-            'atomic_char': (r'std::atomic<char>\s+(\w+)', 'char', 1),
-            'atomic_signed_char': (r'std::atomic<signed char>\s+(\w+)', 'signed_char', 1),
-            'atomic_unsigned_char': (r'std::atomic<unsigned char>\s+(\w+)', 'unsigned_char', 1),
-            
-            # System atomic types
-            'atomic_size_t': (r'std::atomic<size_t>\s+(\w+)', 'size_t', 8),  # Usually 8 bytes on 64-bit
-            'atomic_intptr_t': (r'std::atomic<intptr_t>\s+(\w+)', 'intptr_t', 8),
-            'atomic_uintptr_t': (r'std::atomic<uintptr_t>\s+(\w+)', 'uintptr_t', 8),
 
-            # Embedded/Fixed-point atomic types (Q notation)
-            'atomic_q15_t': (r'std::atomic<q15_t>\s+(\w+)', 'q15_t', 2),  # Q15 fixed-point (16-bit)
-            'atomic_q31_t': (r'std::atomic<q31_t>\s+(\w+)', 'q31_t', 4),  # Q31 fixed-point (32-bit)
-
-            # Common embedded typedef patterns
-            'atomic_custom_type': (r'std::atomic<(\w+_t)>\s+(\w+)', 'custom_typedef', 0),  # Generic typedef pattern
-
-            # Regular (non-atomic) types for completeness
+            # SDV regular types
             'int_var': (r'\bint\s+(\w+)', 'int', 4),
+            'char_var': (r'\bchar\s+(\w+)', 'char', 1),
             'float_var': (r'\bfloat\s+(\w+)', 'float', 4),
             'double_var': (r'\bdouble\s+(\w+)', 'double', 8),
             'bool_var': (r'\bbool\s+(\w+)', 'bool', 1),
-
-            # Regular embedded types
-            'q15_t_var': (r'\bq15_t\s+(\w+)', 'q15_t', 2),
-            'q31_t_var': (r'\bq31_t\s+(\w+)', 'q31_t', 4),
         }
     
     def extract_variables_from_source(self, cpp_code: str) -> List[Dict[str, Any]]:
@@ -72,25 +42,10 @@ class AutoVariableDetector:
         for pattern_name, (regex, var_type, size_bytes) in self.variable_patterns.items():
             matches = re.findall(regex, cpp_code)
             for match in matches:
-                # Handle different regex patterns - some return tuples, some single strings
-                if pattern_name == 'atomic_custom_type' and isinstance(match, tuple):
-                    # For custom type pattern: (type_name, var_name)
-                    custom_type, var_name = match
-                    actual_type = custom_type
-                    # Try to infer size from type name
-                    if '16' in custom_type or 'q15' in custom_type:
-                        actual_size = 2
-                    elif '32' in custom_type or 'q31' in custom_type:
-                        actual_size = 4
-                    elif '8' in custom_type:
-                        actual_size = 1
-                    else:
-                        actual_size = 4  # Default
-                else:
-                    # Regular pattern returns just variable name
-                    var_name = match if isinstance(match, str) else match
-                    actual_type = var_type
-                    actual_size = size_bytes
+                # All patterns now return just variable name (simplified)
+                var_name = match if isinstance(match, str) else match
+                actual_type = var_type
+                actual_size = size_bytes
 
                 # Skip common keywords and function names
                 if var_name.lower() in ['main', 'return', 'if', 'for', 'while', 'do']:
@@ -143,6 +98,11 @@ class AutoVariableDetector:
                         try:
                             addr = int(addr_str, 16)
                             symbol_table[symbol_name] = addr
+
+                            # Also store simple name for namespaced variables (e.g., FCW::front_distance -> front_distance)
+                            if '::' in symbol_name:
+                                simple_name = symbol_name.split('::')[-1]
+                                symbol_table[simple_name] = addr
                         except ValueError:
                             continue
             
@@ -431,10 +391,10 @@ def test_auto_detection():
     """Test the automatic variable detection system."""
     print("=== Testing Automatic Variable Detection ===\n")
     
-    # Test with current C++ code
-    app_dir = Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/kuksa-syncer/app")
-    cpp_file = app_dir / "main.cpp"
-    binary_file = app_dir / "main_bin"
+    # Test with SDV types test program
+    base_dir = Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork")
+    cpp_file = base_dir / "test_sdv_types.cpp"
+    binary_file = base_dir / "test_sdv_types"
     
     if not cpp_file.exists():
         print("❌ C++ source file not found")

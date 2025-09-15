@@ -32,25 +32,25 @@ void SensorManager::updateSensors() {
     gyro_yaw.store(sin(sensor_cycle * 0.08f) * 5.0f);
     
     // Environmental sensors
-    int16_t temp = static_cast<int16_t>(200 + sin(sensor_cycle * 0.01) * 100); // 10-30°C
+    int temp = static_cast<int>(200 + sin(sensor_cycle * 0.01) * 100); // 10-30°C
     ambient_temperature.store(temp);
     
-    uint16_t humidity = static_cast<uint16_t>(500 + cos(sensor_cycle * 0.02) * 200); // 30-70%
+    int humidity = static_cast<int>(500 + cos(sensor_cycle * 0.02) * 200); // 30-70%
     ambient_humidity.store(humidity);
     
-    uint32_t pressure = static_cast<uint32_t>(101325 + sin(sensor_cycle * 0.005) * 1000);
+    int pressure = static_cast<int>(101325 + sin(sensor_cycle * 0.005) * 1000);
     ambient_pressure.store(pressure);
     
     // Distance sensors (obstacle detection simulation)
-    uint16_t front_dist = static_cast<uint16_t>(1000 + (sensor_cycle % 100) * 40);
-    front_distance.store(std::min(static_cast<uint16_t>(5000), front_dist));
+    int front_dist = static_cast<int>(1000 + (sensor_cycle % 100) * 40);
+    front_distance.store(std::min(static_cast<int>(5000), front_dist));
     
-    rear_distance.store(static_cast<uint16_t>(2000 + (sensor_cycle % 80) * 30));
-    left_distance.store(static_cast<uint16_t>(1500 + sin(sensor_cycle * 0.3f) * 500));
-    right_distance.store(static_cast<uint16_t>(1500 + cos(sensor_cycle * 0.3f) * 500));
+    rear_distance.store(static_cast<int>(2000 + (sensor_cycle % 80) * 30));
+    left_distance.store(static_cast<int>(1500 + sin(sensor_cycle * 0.3f) * 500));
+    right_distance.store(static_cast<int>(1500 + cos(sensor_cycle * 0.3f) * 500));
     
     // TPMS simulation
-    uint16_t base_pressure = 220; // 2.2 bar = 220 kPa
+    int base_pressure = 220; // 2.2 bar = 220 kPa
     tire_pressure_fl.store(base_pressure + (sensor_cycle % 20) - 10);
     tire_pressure_fr.store(base_pressure + ((sensor_cycle + 5) % 20) - 10);
     tire_pressure_rl.store(base_pressure + ((sensor_cycle + 10) % 20) - 10);
@@ -63,10 +63,10 @@ void SensorManager::updateSensors() {
     float current = -5.0f + (sensor_cycle % 100) * 0.2f; // -5 to +15 A
     battery_current.store(current);
     
-    uint8_t soc = static_cast<uint8_t>(std::max(10, 90 - (sensor_cycle / 50)));
+    char soc = static_cast<char>(std::max(10, 90 - (sensor_cycle / 50)));
     battery_soc.store(soc);
     
-    int8_t bat_temp = static_cast<int8_t>(25 + sin(sensor_cycle * 0.05f) * 15);
+    char bat_temp = static_cast<char>(25 + sin(sensor_cycle * 0.05f) * 15);
     battery_temperature.store(bat_temp);
 }
 

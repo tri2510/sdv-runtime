@@ -21,13 +21,13 @@ void VehicleController::updateControlSystems() {
     
     // Update throttle and brake based on speed error
     if (error > 5.0f) {
-        throttle_position.store(std::min(static_cast<int16_t>(1000), static_cast<int16_t>(error * 20)));
+        throttle_position.store(std::min(static_cast<int>(1000), static_cast<int>(error * 20)));
         brake_pressure.store(0);
     } else if (error < -5.0f) {
         throttle_position.store(0);
-        brake_pressure.store(std::min(static_cast<int16_t>(1000), static_cast<int16_t>(-error * 15)));
+        brake_pressure.store(std::min(static_cast<int>(1000), static_cast<int>(-error * 15)));
     } else {
-        throttle_position.store(static_cast<int16_t>(500 + error * 10));
+        throttle_position.store(static_cast<int>(500 + error * 10));
         brake_pressure.store(0);
     }
     
@@ -42,15 +42,15 @@ void VehicleController::updateControlSystems() {
     
     // Engine RPM based on speed and load
     float speed = actual_speed.load();
-    uint16_t base_rpm = static_cast<uint16_t>(800 + speed * 25); // Base RPM
+    int base_rpm = static_cast<int>(800 + speed * 25); // Base RPM
     engine_rpm.store(base_rpm + (update_cycle % 200));
     
     // Engine load based on throttle
-    engine_load.store(static_cast<uint8_t>(throttle_position.load() / 10));
+    engine_load.store(static_cast<char>(throttle_position.load() / 10));
     
     // Engine temperature simulation
-    int8_t temp = static_cast<int8_t>(80 + (engine_load.load() / 10) + (update_cycle % 40) - 20);
-    engine_temp.store(std::max(static_cast<int8_t>(60), std::min(static_cast<int8_t>(110), temp)));
+    char temp = static_cast<char>(80 + (engine_load.load() / 10) + (update_cycle % 40) - 20);
+    engine_temp.store(std::max(static_cast<char>(60), std::min(static_cast<char>(110), temp)));
     
     // Transmission gear selection
     float current_speed = actual_speed.load();
