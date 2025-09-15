@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wall -Wextra -pthread -O3 CMakeFiles/basic_monitoring.dir/main.cpp.o -o basic_monitoring  -lpthread 

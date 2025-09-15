@@ -1,8 +1,8 @@
-# C++ Variable Monitoring Test Suite
+# Complete C++ Variable Monitoring Test Suite
 
 ## 🎯 Overview
 
-This unified test suite validates the C++ global variable monitoring functionality that works **independently of KUKSA databroker**. The tests are organized into three categories based on their scope and purpose.
+This is the **single, unified test suite** for all C++ global variable monitoring functionality that works **independently of KUKSA databroker**. All tests have been consolidated from previously scattered directories (`test/`, `integration-tests/`, `kuksa-syncer/`) into this organized structure.
 
 ## 📁 Test Structure
 
@@ -20,17 +20,29 @@ cpp-tests/
 ### Unit Tests (`unit/`)
 Tests individual components and functions in isolation:
 
-- **`test_auto_detection.py`** - Tests automatic C++ variable detection from source code and binaries
+- **`test_auto_detection.py`** - Automatic C++ variable detection from source code and binaries
 - **`quick_cpp_test.py`** - Quick validation that C++ tracing components work correctly
+- **`final_memory_test.py`** - Memory reading and variable address validation
+- **`check_variable_addresses.py`** - Variable address mapping verification
+- **`debug_memory_reading.py`** - Memory reading debugging utilities
+- **`test_simple_memory_read.py`** - Simple memory reading validation
 
-**Goal**: Validate that individual components (variable detection, symbol mapping) work correctly.
+**Goal**: Validate that individual components (variable detection, symbol mapping, memory reading) work correctly.
 
 ### Integration Tests (`integration/`)
 Tests complete workflows and system integration:
 
-- **`test_smart_adaptive.py`** - Tests smart adaptive syncer that filters non-existent variables
+- **`test_smart_adaptive.py`** - Smart adaptive syncer that filters non-existent variables
 - **`test_end_to_end_integration.py`** - Complete end-to-end pipeline testing
-- **`test_syncer_pipeline.py`** - Tests the full syncer pipeline integration
+- **`test_syncer_pipeline.py`** - Full syncer pipeline integration
+- **`test_ptrace_monitoring.py`** - Ptrace-based memory monitoring integration
+- **`test_cpp_commands.py`** - C++ command handling and execution
+- **`test_direct_cpp_build.py`** - Direct C++ compilation and monitoring
+- **`test_kitserver_cpp_build.py`** - Kit-server C++ integration
+- **`test_command_handling.py`** - Command processing and handling
+- **`test_syncer_import.py`** - Syncer module import and initialization
+- **`test_with_variable_detector.py`** - Variable detector integration
+- **`simulate_kitserver_request.py`** - Kit-server request simulation
 
 **Goal**: Validate that components work together to provide complete C++ monitoring functionality.
 
@@ -39,6 +51,8 @@ Final validation that the entire system meets requirements:
 
 - **`final_verification_test.py`** - Final verification that C++ tracing works without KUKSA databroker
 - **`final_ego_speed_test.py`** - Specific validation of automotive variable monitoring
+- **`test_automotive_variables.py`** - Comprehensive automotive variable testing
+- **`validate_complete_integration.py`** - Complete system integration validation
 
 **Goal**: Confirm that the complete system validates the original requirements and goals.
 
