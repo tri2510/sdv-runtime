@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cmath>
 #include <random>
+#include <algorithm>
 
 // Performance stress test with global variables - SDV minimal types
 // High-frequency updates demonstrating ptrace monitoring under load
@@ -83,11 +84,24 @@ void highFrequencyUpdate(int cycle) {
     pid_derivative.store(derivative);
     previous_error = error;
     
-    float output = 1.2f * error + 0.8f * integral + 0.1f * derivative;
+    // More conservative PID gains to prevent instability
+    float output = 0.1f * error + 0.01f * integral + 0.001f * derivative;
+
+    // Clamp output to prevent runaway
+    output = std::max(-100.0f, std::min(100.0f, output));
     pid_output.store(output);
-    
-    // Update process value based on output
+
+    // Update process value based on output with bounds checking
     float process_val = pid_process_value.load() + output * 0.01f + noise_dist(rng);
+
+    // Prevent NaN and infinite values
+    if (std::isnan(process_val) || std::isinf(process_val)) {
+        process_val = 48.5f; // Reset to initial value
+        pid_integral.store(0.0f); // Reset integral to prevent windup
+    }
+
+    // Clamp process value to reasonable range
+    process_val = std::max(0.0f, std::min(200.0f, process_val));
     pid_process_value.store(process_val);
     
     // High-frequency counters
