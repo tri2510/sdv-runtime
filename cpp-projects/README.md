@@ -1,6 +1,6 @@
 # Comprehensive C++ Variable Monitoring Test Suite
 
-This test suite contains 5 different C++ projects designed to thoroughly test the universal variable monitoring system across various project structures, build systems, and variable types commonly found in automotive and embedded software development.
+This test suite contains 7 different C++ projects designed to thoroughly test the universal variable monitoring system across various project structures, build systems, and variable types commonly found in automotive and embedded software development.
 
 ## Test Projects Overview
 
@@ -59,13 +59,35 @@ This test suite contains 5 different C++ projects designed to thoroughly test th
 - **Variables**: ~25 embedded-style variables
 - **Update Rate**: 4Hz (250ms intervals) - typical ECU rate
 
+### 6. **06-matlab-style** - MATLAB/Simulink-Style Variables
+- **Purpose**: Test monitoring of MATLAB/Simulink-style variable naming and patterns
+- **Build System**: Simple g++ with build.sh
+- **Key Features**:
+  - MATLAB-style variable naming conventions
+  - Simulink block-style variable organization
+  - Automotive model variables (engine, transmission, vehicle dynamics)
+  - Straightforward variable patterns for easy detection
+- **Variables**: ~15 MATLAB-style variables
+- **Update Rate**: 2Hz (500ms intervals)
+
+### 7. **07-simulink-blocks** - Simulink Block Variables
+- **Purpose**: Test monitoring of Simulink block-style variable patterns
+- **Build System**: Simple g++ with build.sh
+- **Key Features**:
+  - Simulink block naming patterns
+  - Model-based development variable styles
+  - Automotive control system variables
+  - Block diagram variable organization
+- **Variables**: ~12 Simulink-style variables
+- **Update Rate**: 2Hz (500ms intervals)
+
 ## Current Limitations
 
 **Note**: Array variable monitoring is not yet supported. The monitoring system currently supports individual scalar variables (int, char, float, double, bool) and their atomic variants. Array support is planned for future development.
 
 ## Build Systems Tested
 
-1. **Direct g++ compilation** (Projects 1, 4, 5)
+1. **Direct g++ compilation** (Projects 1, 4, 5, 6, 7)
 2. **CMake** (Project 2)
 3. **Traditional Makefile** (Project 3)
 
@@ -153,10 +175,10 @@ TESTING: Basic Types Monitor (01-basic-types)
 ============================================================
 COMPREHENSIVE TEST SUITE RESULTS
 ============================================================
-Total Projects: 5
-Successful Builds: 5/5
-Successful Tests: 5/5
-Successful Monitoring: 5/5
+Total Projects: 7
+Successful Builds: 7/7
+Successful Tests: 7/7
+Successful Monitoring: 7/7
 
 DETAILED RESULTS:
 ------------------------------------------------------------
@@ -205,6 +227,8 @@ This test suite is specifically designed to work with the smart adaptive syncer 
 | 03-makefile-build | ~20 | 1.7Hz | 30s | Namespace groups |
 | 04-complex-structures | ~40 | 2Hz | 30s | Nested hierarchies |
 | 05-embedded-style | ~25 | 4Hz | 20s | Fixed-point/packed |
+| 06-matlab-style | ~15 | 2Hz | 30s | MATLAB conventions |
+| 07-simulink-blocks | ~12 | 2Hz | 30s | Simulink patterns |
 
 ## Success Criteria
 
@@ -268,6 +292,12 @@ cpp-projects/
 │   └── build.sh
 ├── 05-embedded-style/
 │   ├── embedded_ecu_system.cpp
+│   └── build.sh
+├── 06-matlab-style/
+│   ├── simulink_vehicle_model.cpp
+│   └── build.sh
+├── 07-simulink-blocks/
+│   ├── simulink_blocks_model.cpp
 │   └── build.sh
 ├── run_comprehensive_tests.py
 └── README.md
