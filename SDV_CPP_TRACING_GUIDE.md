@@ -347,6 +347,7 @@ See the `cpp-projects/` directory for complete working examples:
 - `03-makefile-build/` - ADAS systems with namespaces
 - `04-complex-structures/` - Complex vehicle monitoring
 - `05-embedded-style/` - ECU-style embedded system
-- `06-performance-stress/` - High-frequency variable updates
+- `06-matlab-style/` - MATLAB-style controller patterns
+- `07-simulink-blocks/` - Simulink block execution model
 
 All examples follow this guide and work with the SDV tracing system.

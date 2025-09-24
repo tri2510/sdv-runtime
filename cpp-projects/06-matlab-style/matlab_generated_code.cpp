@@ -1,7 +1,8 @@
-#include <iostream>
-#include <thread>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <iostream>
+#include <thread>
 
 // MATLAB-style generated C++ code with straightforward global variables
 // Typical patterns from MATLAB Coder and Simulink Coder output

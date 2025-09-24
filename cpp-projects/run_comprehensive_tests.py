@@ -2,7 +2,7 @@
 """
 Comprehensive C++ Variable Monitoring Test Suite Runner
 
-This script builds and tests all 6 C++ projects designed to thoroughly test 
+This script builds and tests all 7 C++ projects designed to thoroughly test 
 the universal variable monitoring system across different project structures,
 build systems, and variable types.
 
@@ -12,7 +12,8 @@ Projects:
 3. 03-makefile-build: Makefile ADAS systems with namespaces
 4. 04-complex-structures: Complex nested namespaces
 5. 05-embedded-style: Embedded ECU with fixed-point and bit-packed data
-6. 06-performance-stress: High-frequency updates and stress testing
+6. 06-matlab-style: MATLAB/Simulink-style variables and controllers
+7. 07-simulink-blocks: Simulink block execution with automotive signals
 """
 
 import os
@@ -83,14 +84,24 @@ class ComprehensiveTestRunner:
                     "main_loop_counter", "vehicle_speed_q31"
                 ]
             },
-            "06-performance-stress": {
-                "name": "Performance Stress Test",
-                "executable": "performance_stress_test", 
+            "06-matlab-style": {
+                "name": "MATLAB-Style Vehicle Controller",
+                "executable": "matlab_generated_code",
                 "build_cmd": ["./build.sh"],
-                "test_duration": 15,
+                "test_duration": 20,
                 "expected_vars": [
-                    "pid_setpoint", "high_freq_counter", "sensor_array_1",
-                    "wheel_speed_fl", "shared_accumulator"
+                    "throttle_position", "vehicle_speed", "engine_torque_cmd",
+                    "speed_integral", "engine_enable"
+                ]
+            },
+            "07-simulink-blocks": {
+                "name": "Simulink Vehicle Model",
+                "executable": "simulink_vehicle_model",
+                "build_cmd": ["./build.sh"],
+                "test_duration": 20,
+                "expected_vars": [
+                    "vehicle_velocity", "throttle_command", "brake_command",
+                    "engine_speed", "cruise_control_active"
                 ]
             }
         }
