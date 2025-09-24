@@ -12,3 +12,5 @@ mock_service.log
 .vssclient_history
 data/python-packages/
 data/custom-models/
+cpp-tests/support/bin/
+kuksa-syncer/app/test_simple

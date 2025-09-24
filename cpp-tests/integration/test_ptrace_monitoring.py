@@ -10,6 +10,10 @@ import time
 import asyncio
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from support.build_support import ensure_ptrace_test_binary, PTRACE_TEST_BINARY
+
 # Add kuksa-syncer to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'kuksa-syncer'))
 
@@ -18,12 +22,8 @@ from ptrace_memory_reader import MemoryVariableMonitor
 def test_ptrace_monitoring():
     """Test the ptrace-based monitoring with the test app."""
     
-    test_binary = "/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/test/04-cpp-memshare-upstream/test_app"
-    
-    if not os.path.exists(test_binary):
-        print("Error: test_app binary not found. Please compile it first.")
-        print("Run: cd test/04-cpp-memshare-upstream && g++ -g -O0 -o test_app test_app.cpp")
-        return False
+    ensure_ptrace_test_binary()
+    test_binary = str(PTRACE_TEST_BINARY)
     
     print(f"Testing ptrace memory monitoring with {test_binary}")
     

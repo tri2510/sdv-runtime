@@ -11,6 +11,8 @@ current_dir = Path(__file__).parent
 kuksa_syncer_path = current_dir.parent.parent / "kuksa-syncer"
 sys.path.insert(0, str(kuksa_syncer_path))
 
+REPO_ROOT = current_dir.parent.parent
+
 from auto_variable_detector import AutoVariableDetector
 
 def test_matlab_style_detection():
@@ -19,9 +21,9 @@ def test_matlab_style_detection():
     print("=" * 55)
 
     # Test MATLAB-style project
-    matlab_project = "/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/07-matlab-style"
-    matlab_source = os.path.join(matlab_project, "matlab_generated_code.cpp")
-    matlab_binary = os.path.join(matlab_project, "matlab_generated_code")
+    matlab_project = REPO_ROOT / "cpp-projects" / "06-matlab-style"
+    matlab_source = matlab_project / "matlab_generated_code.cpp"
+    matlab_binary = matlab_project / "matlab_generated_code"
 
     print(f"📂 MATLAB Project: {matlab_project}")
     print(f"📄 Source: matlab_generated_code.cpp")
@@ -34,7 +36,7 @@ def test_matlab_style_detection():
         matlab_code = f.read()
 
     print("\n🔍 Running detection...")
-    variables = detector.auto_detect_variables(matlab_code, matlab_binary)
+    variables = detector.auto_detect_variables(matlab_code, str(matlab_binary))
 
     print(f"✅ Found {len(variables)} variables:")
 
@@ -92,9 +94,9 @@ def test_simulink_style_detection():
     print("=" * 55)
 
     # Test Simulink-style project
-    simulink_project = "/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/08-simulink-blocks"
-    simulink_source = os.path.join(simulink_project, "simulink_vehicle_model.cpp")
-    simulink_binary = os.path.join(simulink_project, "simulink_vehicle_model")
+    simulink_project = REPO_ROOT / "cpp-projects" / "07-simulink-blocks"
+    simulink_source = simulink_project / "simulink_vehicle_model.cpp"
+    simulink_binary = simulink_project / "simulink_vehicle_model"
 
     print(f"📂 Simulink Project: {simulink_project}")
     print(f"📄 Source: simulink_vehicle_model.cpp")
@@ -107,7 +109,7 @@ def test_simulink_style_detection():
         simulink_code = f.read()
 
     print("\n🔍 Running detection...")
-    variables = detector.auto_detect_variables(simulink_code, simulink_binary)
+    variables = detector.auto_detect_variables(simulink_code, str(simulink_binary))
 
     print(f"✅ Found {len(variables)} variables:")
 

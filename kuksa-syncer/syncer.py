@@ -8,6 +8,7 @@
 
 import signal
 import subprocess
+from pathlib import Path
 from kuksa_client.grpc.aio import VSSClient
 from kuksa_client.grpc import VSSClient as KClient
 from kuksa_client.grpc import Datapoint
@@ -87,7 +88,12 @@ sio = socketio.AsyncClient()
 
 client = VSSClient(BORKER_IP, BROKER_PORT)
 
-mock_signal_path = "/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/mock/signals.json"
+# Resolve mock signals file relative to repository root to remain deployable
+REPO_ROOT = Path(__file__).resolve().parent.parent
+mock_signal_path = REPO_ROOT / "mock" / "signals.json"
+
+# Keep a reference to the main event loop for thread-safe callbacks
+main_loop = None
 
 def is_process_running_nix(process_name):
     """Check if a process with the given name is running on Linux/macOS."""
@@ -184,14 +190,25 @@ async def stop_client_processes(from_id):
         print(f"No C++ processes found for client {from_id}", flush=True)
         return False
 
+def _schedule_callback(coro):
+    """Dispatch coroutine onto the main event loop from worker threads."""
+    if main_loop and main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(coro, main_loop)
+    else:
+        # Fallback for early boot where loop is not yet ready
+        asyncio.run(coro)
+
+
 def process_done(master_id: str, retcode: int):
-    asyncio.run(send_app_run_reply(master_id, True, retcode, ""))
+    _schedule_callback(send_app_run_reply(master_id, True, retcode, ""))
+
 
 def my_stdout_callback(master_id: str, line: str):
-    asyncio.run(send_app_run_reply(master_id, False, 0, line + '\r\n'))
+    _schedule_callback(send_app_run_reply(master_id, False, 0, line + '\r\n'))
+
 
 def my_stderr_callback(master_id: str, line: str):
-    asyncio.run(send_app_run_reply(master_id, False, 0, line + '\r\n'))
+    _schedule_callback(send_app_run_reply(master_id, False, 0, line + '\r\n'))
 
 
 @sio.event
@@ -315,7 +332,8 @@ async def messageToKit(data):
         return 0
     
     if data["cmd"] == "reset_signals_value":
-        signal_list = json.load(mock_signal_path)
+        with open(mock_signal_path) as f:
+            signal_list = json.load(f)
         writeSignalsValue(str(signal_list))
         mock_signal = listMockSignal()
         await sio.emit("messageToKit-kitReply", {
@@ -1113,6 +1131,8 @@ async def ticker_5s():
             print("Error: ", str(e))
 
 async def main():
+    global main_loop
+    main_loop = asyncio.get_running_loop()
     SERVER = os.getenv('SYNCER_SERVER_URL', DEFAULT_KIT_SERVER) + ""
     global CLIENT_ID
     runtime_prefix = os.getenv('RUNTIME_PREFIX', DEFAULT_RUNTIME_PREFIX)
