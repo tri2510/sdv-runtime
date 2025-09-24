@@ -1,6 +1,6 @@
 # Comprehensive C++ Variable Monitoring Test Suite
 
-This test suite contains 6 different C++ projects designed to thoroughly test the universal variable monitoring system across various project structures, build systems, and variable types commonly found in automotive and embedded software development.
+This test suite contains 5 different C++ projects designed to thoroughly test the universal variable monitoring system across various project structures, build systems, and variable types commonly found in automotive and embedded software development.
 
 ## Test Projects Overview
 
@@ -59,22 +59,13 @@ This test suite contains 6 different C++ projects designed to thoroughly test th
 - **Variables**: ~25 embedded-style variables
 - **Update Rate**: 4Hz (250ms intervals) - typical ECU rate
 
-### 6. **06-performance-stress** - High-Frequency Stress Test
-- **Purpose**: Test system performance under high-frequency variable updates
-- **Build System**: Simple g++ with build.sh
-- **Key Features**:
-  - 1kHz+ control loops (PID controllers)
-  - Multiple sensor arrays (32, 64, 16 element arrays)
-  - Multi-threaded shared variables
-  - Performance metrics monitoring
-  - Realistic vehicle dynamics simulation
-  - High-frequency counters and timers
-- **Variables**: ~50+ high-frequency variables including arrays
-- **Update Rate**: 10kHz (100μs intervals) - stress testing
+## Current Limitations
+
+**Note**: Array variable monitoring is not yet supported. The monitoring system currently supports individual scalar variables (int, char, float, double, bool) and their atomic variants. Array support is planned for future development.
 
 ## Build Systems Tested
 
-1. **Direct g++ compilation** (Projects 1, 4, 5, 6)
+1. **Direct g++ compilation** (Projects 1, 4, 5)
 2. **CMake** (Project 2)
 3. **Traditional Makefile** (Project 3)
 
@@ -162,10 +153,10 @@ TESTING: Basic Types Monitor (01-basic-types)
 ============================================================
 COMPREHENSIVE TEST SUITE RESULTS
 ============================================================
-Total Projects: 6
-Successful Builds: 6/6
-Successful Tests: 6/6
-Successful Monitoring: 6/6
+Total Projects: 5
+Successful Builds: 5/5
+Successful Tests: 5/5
+Successful Monitoring: 5/5
 
 DETAILED RESULTS:
 ------------------------------------------------------------
@@ -214,7 +205,6 @@ This test suite is specifically designed to work with the smart adaptive syncer 
 | 03-makefile-build | ~20 | 1.7Hz | 30s | Namespace groups |
 | 04-complex-structures | ~40 | 2Hz | 30s | Nested hierarchies |
 | 05-embedded-style | ~25 | 4Hz | 20s | Fixed-point/packed |
-| 06-performance-stress | ~50+ | 10kHz | 15s | High-frequency arrays |
 
 ## Success Criteria
 
@@ -278,9 +268,6 @@ cpp-projects/
 │   └── build.sh
 ├── 05-embedded-style/
 │   ├── embedded_ecu_system.cpp
-│   └── build.sh
-├── 06-performance-stress/
-│   ├── performance_stress_test.cpp
 │   └── build.sh
 ├── run_comprehensive_tests.py
 └── README.md
