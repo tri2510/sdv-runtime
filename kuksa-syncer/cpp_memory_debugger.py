@@ -9,6 +9,7 @@ import subprocess
 import asyncio
 import time
 import builtins
+import shutil
 from pathlib import Path
 from typing import Tuple, Dict
 from memory_monitor import ProcessMemoryMonitor, SmartVariableDetector
@@ -62,7 +63,12 @@ async def compile_cpp():
 async def compile_with_cmake():
     """Compile C++ project using CMake build system."""
     build_dir = APP_DIR / 'build'
-    build_dir.mkdir(exist_ok=True)
+    if build_dir.exists():
+        try:
+            shutil.rmtree(build_dir)
+        except Exception as exc:
+            print(f"⚠️  Failed to clean previous CMake build directory: {exc}", flush=True)
+    build_dir.mkdir(parents=True, exist_ok=True)
     print(f"📁 Using build directory: {build_dir}", flush=True)
     
     all_output = "=== CMake Build Process ===\n"
