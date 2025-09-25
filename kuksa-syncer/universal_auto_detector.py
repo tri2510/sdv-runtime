@@ -223,7 +223,7 @@ class UniversalAutoDetector:
         
         # Try nm first (most reliable)
         try:
-            result = subprocess.run(['nm', '-C', '-D', str(binary_path)], 
+            result = subprocess.run(['nm', '-C', str(binary_path)], 
                                   capture_output=True, text=True, timeout=30)
             
             if result.returncode == 0:
@@ -243,6 +243,26 @@ class UniversalAutoDetector:
                             except ValueError:
                                 continue
             
+            # Fallback to dynamic table when the regular one is stripped
+            if len(symbol_table) == 0:
+                print("   ℹ️  retrying nm with dynamic symbol table")
+                dyn_result = subprocess.run(['nm', '-C', '-D', str(binary_path)],
+                                          capture_output=True, text=True, timeout=30)
+                if dyn_result.returncode == 0:
+                    for line in dyn_result.stdout.split('\n'):
+                        if not line.strip():
+                            continue
+
+                        parts = line.split()
+                        if len(parts) >= 3:
+                            addr_str, symbol_type, symbol_name = parts[0], parts[1], parts[2]
+                            if symbol_type.upper() in ['B', 'D']:
+                                try:
+                                    addr = int(addr_str, 16)
+                                    symbol_table[symbol_name] = addr
+                                except ValueError:
+                                    continue
+        
             print(f"   📊 nm found {len(symbol_table)} data symbols")
         
         except Exception as e:

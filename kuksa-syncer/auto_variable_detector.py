@@ -118,6 +118,28 @@ class AutoVariableDetector:
                                 symbol_table[simple_name] = addr
                         except ValueError:
                             continue
+
+            # Retry with dynamic symbol table if nothing was discovered
+            if len(symbol_table) == 0:
+                dyn_result = subprocess.run(['nm', '-C', '-D', binary_path],
+                                           capture_output=True, text=True)
+                if dyn_result.returncode == 0:
+                    for line in dyn_result.stdout.split('\n'):
+                        if not line.strip():
+                            continue
+
+                        parts = line.split()
+                        if len(parts) >= 3:
+                            addr_str, symbol_type, symbol_name = parts[0], parts[1], parts[2]
+                            if symbol_type.upper() in ['B', 'D']:
+                                try:
+                                    addr = int(addr_str, 16)
+                                    symbol_table[symbol_name] = addr
+                                    if '::' in symbol_name:
+                                        simple_name = symbol_name.split('::')[-1]
+                                        symbol_table[simple_name] = addr
+                                except ValueError:
+                                    continue
             
             return symbol_table
             
