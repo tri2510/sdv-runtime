@@ -116,8 +116,24 @@ class UniversalAutoDetector:
         source_files = self.find_all_source_files(project_dir)
         print(f"📄 Found {len(source_files)} source files")
         
-        all_variables = []
-        
+        unique_variables = {}
+
+        def priority(var):
+            type_rank = {
+                'double': 5,
+                'float': 4,
+                'int': 3,
+                'bool': 2,
+                'char': 1,
+            }
+            bonus = 10 if var.get('is_atomic') else 0
+            return bonus + type_rank.get(var.get('type'), 0)
+
+        def consider(var):
+            existing = unique_variables.get(var['name'])
+            if existing is None or priority(var) > priority(existing):
+                unique_variables[var['name']] = var
+
         for source_file in source_files:
             try:
                 with open(source_file, 'r', encoding='utf-8', errors='ignore') as f:
@@ -130,7 +146,7 @@ class UniversalAutoDetector:
                     matches = re.findall(pattern, content, re.MULTILINE)
                     for var_name in matches:
                         if var_name not in self.skip_names:
-                            all_variables.append({
+                            consider({
                                 'name': var_name,
                                 'type': var_type,
                                 'size_bytes': size_bytes,
@@ -139,39 +155,26 @@ class UniversalAutoDetector:
                                 'pattern': pattern
                             })
                             print(f"      ⚛️  Found atomic: {var_name} ({var_type})")
+                            print(f"      ⚛️  Found atomic: {var_name} ({var_type})")
                 
                 # Extract regular variables (as backup)
                 for pattern, (var_type, size_bytes) in self.regular_patterns.items():
                     matches = re.findall(pattern, content, re.MULTILINE)
                     for var_name in matches:
                         if var_name not in self.skip_names:
-                            # Only add if we don't already have it as atomic
-                            existing_names = [v['name'] for v in all_variables]
-                            if var_name not in existing_names:
-                                all_variables.append({
-                                    'name': var_name,
-                                    'type': var_type,
-                                    'size_bytes': size_bytes,
-                                    'is_atomic': False,
-                                    'source_file': str(source_file),
-                                    'pattern': pattern
-                                })
-                                print(f"      📋 Found regular: {var_name} ({var_type})")
+                            consider({
+                                'name': var_name,
+                                'type': var_type,
+                                'size_bytes': size_bytes,
+                                'is_atomic': False,
+                                'source_file': str(source_file),
+                                'pattern': pattern
+                            })
+                            print(f"      📋 Found regular: {var_name} ({var_type})")
                 
             except Exception as e:
                 print(f"   ⚠️  Error reading {source_file}: {e}")
                 continue
-        
-        # Remove duplicates, preferring atomic over regular
-        unique_variables = {}
-        for var in all_variables:
-            name = var['name']
-            if name not in unique_variables:
-                unique_variables[name] = var
-            else:
-                # Prefer atomic variables
-                if var['is_atomic'] and not unique_variables[name]['is_atomic']:
-                    unique_variables[name] = var
         
         return list(unique_variables.values())
     

@@ -72,17 +72,25 @@ class AutoVariableDetector:
                     'is_atomic': 'atomic' in pattern_name
                 })
         
-        # Remove duplicates (same variable might match multiple patterns)
+        type_rank = {
+            'double': 5,
+            'float': 4,
+            'int': 3,
+            'bool': 2,
+            'char': 1,
+        }
+
+        def priority(var):
+            bonus = 10 if var.get('is_atomic') else 0
+            return bonus + type_rank.get(var.get('type'), 0)
+
         unique_vars = {}
         for var in detected_vars:
             name = var['name']
-            if name not in unique_vars:
+            existing = unique_vars.get(name)
+            if existing is None or priority(var) > priority(existing):
                 unique_vars[name] = var
-            else:
-                # Prefer atomic types over regular types
-                if var['is_atomic'] and not unique_vars[name]['is_atomic']:
-                    unique_vars[name] = var
-        
+
         return list(unique_vars.values())
     
     def extract_variables_from_binary(self, binary_path: str) -> Dict[str, int]:
