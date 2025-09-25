@@ -21,3 +21,13 @@ If you prefer a direct invocation, set `PYTEST_ADDOPTS="-p no:pytest_sugar"` or 
 
 ## Sample builds
 The fixtures rebuild each C++ sample as needed (CMake, Makefile, or shell script) and cache successful builds for subsequent tests. Expect the first run to take ~30–35 seconds because all seven binaries are compiled.
+
+## Running the syncer without Kuksa
+Some commands (for example `subscribe_apis`) normally contact the Kuksa databroker. When you only want the ptrace workflow, you can disable those calls by starting the syncer with:
+
+```bash
+export KUKSA_DISABLED=1
+python -m kuksa-syncer.syncer
+```
+
+With `KUKSA_DISABLED=1`, the syncer short-circuits all databroker interactions and logs a “KUKSA integration disabled” message instead of repeatedly attempting to connect to `127.0.0.1:55555`.

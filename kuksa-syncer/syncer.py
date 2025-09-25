@@ -66,6 +66,11 @@ except ImportError as e:
     print(f"Warning: C++ memory monitoring not available: {e}")
     CPP_MEMORY_AVAILABLE = False
 
+KUKSA_DISABLED = os.getenv('KUKSA_DISABLED', '0') == '1'
+
+if KUKSA_DISABLED:
+    print('⚠️  KUKSA integration disabled via KUKSA_DISABLED=1', flush=True)
+
 BORKER_IP = '127.0.0.1'
 BROKER_PORT = 55555
 
@@ -86,7 +91,7 @@ lsOfApiSubscriber = {}
 
 sio = socketio.AsyncClient()
 
-client = VSSClient(BORKER_IP, BROKER_PORT)
+client = VSSClient(BORKER_IP, BROKER_PORT) if not KUKSA_DISABLED else None
 
 # Resolve mock signals file relative to repository root to remain deployable
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -265,6 +270,15 @@ async def messageToKit(data):
         if data["apis"] is not None:
             apis = data["apis"]
             master_id=data["request_from"]
+            if KUKSA_DISABLED:
+                await sio.emit("messageToKit-kitReply", {
+                    "kit_id": CLIENT_ID,
+                    "request_from": data["request_from"],
+                    "cmd": "subscribe_apis",
+                    "result": "Successful (KUKSA disabled, no live updates)"
+                })
+                return 0
+
             lsOfApiSubscriber[master_id] = {
                 "from": time.time(),
                 "apis": apis
@@ -293,6 +307,15 @@ async def messageToKit(data):
         return 0
     
     if data["cmd"] == "list_mock_signal":
+        if KUKSA_DISABLED:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "list_mock_signal",
+                "data": [],
+                "result": "KUKSA disabled"
+            })
+            return 0
         mock_signal = listMockSignal()
         await sio.emit("messageToKit-kitReply", {
             "kit_id": CLIENT_ID,
@@ -304,21 +327,39 @@ async def messageToKit(data):
         return 0
     
     if data["cmd"] == "set_mock_signals":
-        modifyMockSignal(data["data"])
-        mock_signal = listMockSignal()
-        # print("After modifying:")
-        # print(mock_signal)
-        restartMockProvider()
-        await sio.emit("messageToKit-kitReply", {
-            "kit_id": CLIENT_ID,
-            "request_from": data["request_from"],
-            "cmd": "set_mock_signals",
-            "data": mock_signal,
-            "result": "Successful"
-        })
+        if KUKSA_DISABLED:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "set_mock_signals",
+                "data": listMockSignal(),
+                "result": "KUKSA disabled"
+            })
+        else:
+            modifyMockSignal(data["data"])
+            mock_signal = listMockSignal()
+            # print("After modifying:")
+            # print(mock_signal)
+            restartMockProvider()
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "set_mock_signals",
+                "data": mock_signal,
+                "result": "Successful"
+            })
         return 0
     
     if data["cmd"] == "write_signals_value":
+        if KUKSA_DISABLED:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "write_signals_value",
+                "data": {},
+                "result": "KUKSA disabled"
+            })
+            return 0
         writeSignalsValue(data["data"])
         # mock_signal = listMockSignal()
         mock_signal = {}
@@ -332,6 +373,15 @@ async def messageToKit(data):
         return 0
     
     if data["cmd"] == "reset_signals_value":
+        if KUKSA_DISABLED:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "reset_signals_value",
+                "data": {},
+                "result": "KUKSA disabled"
+            })
+            return 0
         with open(mock_signal_path) as f:
             signal_list = json.load(f)
         writeSignalsValue(str(signal_list))
@@ -346,6 +396,14 @@ async def messageToKit(data):
         return 0
     
     if data["cmd"] == "generate_vehicle_model":
+        if KUKSA_DISABLED:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "generate_vehicle_model",
+                "result": "KUKSA disabled"
+            })
+            return 0
         if not VEHICLE_MODEL_AVAILABLE:
             await sio.emit("messageToKit-kitReply", {
                 "kit_id": CLIENT_ID,
@@ -405,6 +463,14 @@ async def messageToKit(data):
             return 0
 
     if data["cmd"] == "revert_vehicle_model":
+        if KUKSA_DISABLED:
+            await sio.emit("messageToKit-kitReply", {
+                "kit_id": CLIENT_ID,
+                "request_from": data["request_from"],
+                "cmd": "revert_vehicle_model",
+                "result": "KUKSA disabled"
+            })
+            return 0
         if not VEHICLE_MODEL_AVAILABLE:
             await sio.emit("messageToKit-kitReply", {
                 "kit_id": CLIENT_ID,
@@ -867,6 +933,9 @@ def listMockSignal():
         print("No signals found.",flush=True)
 
 def stopMockService():
+    if KUKSA_DISABLED:
+        print("Skipping stopMockService because KUKSA is disabled", flush=True)
+        return
     pid_file = "/home/dev/mockprovider.pid"
     if os.path.exists(pid_file):
         with open(pid_file, "r") as f:
@@ -882,6 +951,9 @@ def stopMockService():
         print(f"mockprovider pid file at '{pid_file}' does not exist.", flush=True)
 
 def startMockService():
+    if KUKSA_DISABLED:
+        print("Skipping startMockService because KUKSA is disabled", flush=True)
+        return
     try:
         print("Starting mock provider...", flush=True)
         subprocess.Popen(["python", "/home/dev/ws/mock/mockprovider.py"])
@@ -891,12 +963,18 @@ def startMockService():
         return 1
 
 def restartMockProvider():
+    if KUKSA_DISABLED:
+        print("Skipping restartMockProvider because KUKSA is disabled", flush=True)
+        return
     stopMockService()
     time.sleep(0.5)
     startMockService()
 
 def appendMockSignal(signals):
     if signals is None or len(signals) <=0:
+        return 0
+    if KUKSA_DISABLED:
+        print("Skipping KUKSA mock signal update (KUKSA_DISABLED=1)", flush=True)
         return 0
     
     # Skip KUKSA operations if not available
@@ -943,6 +1021,11 @@ def appendMockSignal(signals):
     return 0
 
 def modifyMockSignal(input_str):
+    if KUKSA_DISABLED:
+        print("Skipping modifyMockSignal because KUKSA is disabled", flush=True)
+        with open(mock_signal_path,'w') as file:
+            json.dump(json.loads(json.dumps(input_str)), file, indent=4)
+        return
     with open(mock_signal_path,'w') as file:
         json_string = json.dumps(input_str)
         input_signals = json.loads(json_string)
@@ -961,6 +1044,9 @@ def modifyMockSignal(input_str):
         return 0
 
 def writeSignalsValue(input_str):
+    if KUKSA_DISABLED:
+        print("Skipping writeSignalsValue because KUKSA is disabled", flush=True)
+        return
     json_str = json.dumps(input_str)
     signal_values = json.loads(json_str)
     with KClient(BORKER_IP, BROKER_PORT) as kclient:
@@ -1002,7 +1088,9 @@ async def ticker_fast():
         await asyncio.sleep(0.3)
         # count number of child in lsOfApiSubscriber
 
-        if len(lsOfApiSubscriber) <= 0:
+        if KUKSA_DISABLED or len(lsOfApiSubscriber) <= 0:
+            continue
+        if KUKSA_DISABLED:
             continue
         if not client.connected:
             try:
@@ -1060,12 +1148,15 @@ async def ticker_fast():
 '''
 async def ticker():
     # Don't require Kuksa to be connected
-    print("Ticker started, Kuksa connected:", client.connected if hasattr(client, 'connected') else False)
+    if KUKSA_DISABLED:
+        print("Ticker started, KUKSA disabled", flush=True)
+    else:
+        print("Ticker started, Kuksa connected:", client.connected if hasattr(client, 'connected') else False)
     while True:
         await asyncio.sleep(1)
 
         # remove old subscriber
-        if len(list(lsOfApiSubscriber.keys())) > 0:
+        if not KUKSA_DISABLED and len(list(lsOfApiSubscriber.keys())) > 0:
             for client_id in list(lsOfApiSubscriber.keys()):
                 subscriber = lsOfApiSubscriber[client_id]
                 timePass = time.time() - subscriber["from"]
@@ -1093,6 +1184,8 @@ async def ticker_5s():
     lastNoApiSubscriber = 0
     while True:
         await asyncio.sleep(1)
+        if KUKSA_DISABLED:
+            continue
         noSubscriber = len(list(lsOfApiSubscriber.keys()))
         if noSubscriber <= 0:
             continue
