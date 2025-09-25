@@ -11,8 +11,21 @@ import ctypes
 import os
 import time
 import signal
+import builtins
 from typing import Dict, List, Tuple, Optional, Any, Union
 from pathlib import Path
+
+def _is_verbose() -> bool:
+    return os.getenv('CPP_TRACE_VERBOSE', '1') == '1'
+
+def _debug_print(*args, **kwargs):
+    if _is_verbose():
+        builtins.print(*args, **kwargs)
+
+def _error_print(*args, **kwargs):
+    builtins.print(*args, **kwargs)
+
+print = _debug_print
 
 class AutoVariableDetector:
     """Automatically detect C++ variables and their types."""
@@ -109,7 +122,7 @@ class AutoVariableDetector:
             return symbol_table
             
         except Exception as e:
-            print(f"Error extracting symbols from binary: {e}")
+            _error_print(f"Error extracting symbols from binary: {e}")
             return symbol_table
         
     def match_source_to_binary(self, source_vars: List[Dict], binary_symbols: Dict[str, int]) -> List[Dict[str, Any]]:
@@ -252,7 +265,7 @@ class SmartMemoryReader:
                             return data_addr - elf_data_start  # This will be our "base" for calculations
                             
         except Exception as e:
-            print(f"Error getting data section address: {e}")
+            _error_print(f"Error getting data section address: {e}")
         return None
     
     def _get_elf_data_start(self, binary_name: str) -> Optional[int]:
@@ -379,7 +392,7 @@ class SmartMemoryReader:
             return None
         
         except Exception as e:
-            print(f"Error reading {var_info['name']}: {e}")
+            _error_print(f"Error reading {var_info['name']}: {e}")
             return None
     
     def read_all_variables(self, var_list: List[Dict[str, Any]]) -> Dict[str, Any]:

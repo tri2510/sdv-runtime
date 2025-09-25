@@ -5,6 +5,7 @@ Test smart adaptive syncer with cmake-multidir project
 import asyncio
 import sys
 import os
+import subprocess
 from pathlib import Path
 
 # Add kuksa-syncer to path for imports
@@ -31,9 +32,16 @@ async def test_smart_adaptive_syncer():
     """Test smart adaptive syncer with non-existent and existing variables"""
     print("🧪 TESTING SMART ADAPTIVE SYNCER")
     print("=" * 50)
-    
+
+    os.environ['CPP_TRACE_VERBOSE'] = os.environ.get('CPP_TRACE_VERBOSE', '0')
+
     mock_sio = MockSocketIO()
-    
+
+    project_dir = Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/02-cmake-structured")
+    binary_path = project_dir / "build" / "vehicle_systems"
+    if not binary_path.exists():
+        subprocess.run(["bash", "build.sh"], cwd=project_dir, check=True)
+
     # Test with mixed variables: some exist, some don't
     trace_vars_data = {
         "cmd": "trace_vars",
@@ -43,7 +51,9 @@ async def test_smart_adaptive_syncer():
         "binary_name": "vehicle_systems",
         # Mix of existing and non-existing variables from our cmake project
         "trace_vars": ["actual_speed", "current_lane", "tire_pressure_fl", "non_existent_var", "battery_voltage", "engine_rpm"],
-        "duration": 5
+        "duration": 1,
+        "skip_build": True,
+        "verbose": False
     }
     
     print(f"🎯 Testing with mixed variables:")

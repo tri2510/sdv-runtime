@@ -11,9 +11,22 @@ import struct
 import os
 import time
 import signal
+import builtins
 from typing import Dict, List, Tuple, Optional, Any, Union
 from pathlib import Path
 import glob
+
+def _is_verbose() -> bool:
+    return os.getenv('CPP_TRACE_VERBOSE', '1') == '1'
+
+def _debug_print(*args, **kwargs):
+    if _is_verbose():
+        builtins.print(*args, **kwargs)
+
+def _error_print(*args, **kwargs):
+    builtins.print(*args, **kwargs)
+
+print = _debug_print
 
 class UniversalAutoDetector:
     """Universal automatic C++ variable detection with zero hardcoded values."""

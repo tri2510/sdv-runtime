@@ -8,12 +8,25 @@ import os
 import subprocess
 import asyncio
 import time
+import builtins
 from pathlib import Path
 from typing import Tuple, Dict
 from memory_monitor import ProcessMemoryMonitor, SmartVariableDetector
 from ptrace_memory_reader import MemoryVariableMonitor
 from auto_variable_detector import AutoVariableDetector, SmartMemoryReader
 from universal_auto_detector import UniversalAutoDetector, create_variable_list_for_syncer
+
+def _is_verbose() -> bool:
+    return os.getenv('CPP_TRACE_VERBOSE', '1') == '1'
+
+def _debug_print(*args, **kwargs):
+    if _is_verbose():
+        builtins.print(*args, **kwargs)
+
+def _error_print(*args, **kwargs):
+    builtins.print(*args, **kwargs)
+
+print = _debug_print
 
 # Import CLIENT_ID from syncer context
 CLIENT_ID = "RunTime-TriCPP"
@@ -49,15 +62,8 @@ async def compile_cpp():
 async def compile_with_cmake():
     """Compile C++ project using CMake build system."""
     build_dir = APP_DIR / 'build'
-    
-    # Clean and recreate build directory to avoid cache conflicts
-    if build_dir.exists():
-        import shutil
-        shutil.rmtree(build_dir)
-        print(f"🧹 Cleaned existing build directory: {build_dir}", flush=True)
-    
     build_dir.mkdir(exist_ok=True)
-    print(f"📁 Created fresh build directory: {build_dir}", flush=True)
+    print(f"📁 Using build directory: {build_dir}", flush=True)
     
     all_output = "=== CMake Build Process ===\n"
     
@@ -266,7 +272,7 @@ def auto_detect_project_variables() -> Tuple[str, Path]:
                 print(f"✅ Using binary: {binary_path}")
                 return var_list, binary_path
     
-    print("❌ No project with monitorable variables found")
+    _error_print("❌ No project with monitorable variables found")
     return "", None
 
 def find_executable_binary(app_dir: Path) -> Path:
@@ -485,7 +491,7 @@ def cleanup_memory_monitor():
     except Exception as e:
         print(f"Error cleaning up auto memory monitor: {e}")
 
-async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_reply_func=None, completion_callback=None):
+async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_reply_func=None, completion_callback=None, duration_seconds=None):
     """Send periodic variable reports and stdout forwarding via ptrace memory inspection with stdout capture."""
     global ptrace_monitor
     
@@ -535,6 +541,7 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
         
         report_count = 0
         lines_read = 0
+        start_time = time.time()
         
         while ptrace_monitor.process.poll() is None:  # Check if process is still running
             # Read stdout/stderr from the C++ process and forward to kit server
@@ -620,13 +627,19 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
                     print(f"🔥 [Report #{report_count}] Variables: {values}, Stdout lines: {lines_read}")
                     
             await asyncio.sleep(0.3)  # 300ms for better stdout responsiveness
+
+            if duration_seconds is not None and (time.time() - start_time) >= duration_seconds:
+                if _is_verbose():
+                    builtins.print(f"🔥 Duration limit reached ({duration_seconds}s), stopping monitoring loop")
+                break
             
     except Exception as e:
-        print(f"🔥 Memory monitoring error: {e}")
+        _error_print(f"🔥 Memory monitoring error: {e}")
         import traceback
         traceback.print_exc()
     finally:
-        print(f"🔥 Stopping memory monitoring - captured {lines_read} stdout lines")
+        if _is_verbose():
+            builtins.print(f"🔥 Stopping memory monitoring - captured {lines_read} stdout lines")
         
         # Flush any remaining stdout/stderr content
         try:
@@ -673,7 +686,7 @@ async def periodic_memory_var_report(socketio, kit_id, watch_vars_str, send_repl
                         pass
                         
         except Exception as flush_error:
-            print(f"Error flushing final output: {flush_error}")
+            _error_print(f"Error flushing final output: {flush_error}")
         
         # Send final completion status to frontend
         await socketio.emit('messageToKit-kitReply', {
@@ -749,14 +762,16 @@ async def start_cpp_trace_vars_monitoring(data, request_from, socketio):
             APP_DIR = Path(project_path)
             print(f"📂 Changed to project directory: {project_path}")
         
-        # Compile the project
-        print("🔨 Compiling C++ project...")
-        if project_type == 'cmake':
-            await compile_with_cmake()
+        # Compile the project unless caller requested to skip
+        if not data.get('skip_build', False):
+            print("🔨 Compiling C++ project...")
+            if project_type == 'cmake':
+                await compile_with_cmake()
+            else:
+                await compile_cpp()
+            print("✅ Compilation completed")
         else:
-            await compile_cpp()
-        
-        print("✅ Compilation completed")
+            print("⏩ Skipping build step (pre-built binary assumed)")
         
         # Start memory monitoring with trace_vars
         watch_vars_str = ','.join(trace_vars)
@@ -767,7 +782,8 @@ async def start_cpp_trace_vars_monitoring(data, request_from, socketio):
             socketio=socketio,
             kit_id=request_from, 
             watch_vars_str=watch_vars_str,
-            send_reply_func=None
+            send_reply_func=None,
+            duration_seconds=duration
         )
         
         print(f"✅ trace_vars monitoring completed for {request_from}")
