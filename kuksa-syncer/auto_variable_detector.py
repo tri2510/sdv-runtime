@@ -111,7 +111,7 @@ class AutoVariableDetector:
         except Exception as e:
             print(f"Error extracting symbols from binary: {e}")
             return symbol_table
-    
+        
     def match_source_to_binary(self, source_vars: List[Dict], binary_symbols: Dict[str, int]) -> List[Dict[str, Any]]:
         """Match source code variables to binary symbols."""
         matched_vars = []
@@ -126,22 +126,29 @@ class AutoVariableDetector:
                 matched_vars.append(var_info)
                 continue
             
-            # Look for partial matches (sometimes symbols have prefixes/suffixes)
-            found_match = False
+            # Look for structured matches (namespaced or static symbols)
             for symbol_name, addr in binary_symbols.items():
-                if var_name in symbol_name:
+                if self._symbol_matches(var_name, symbol_name):
                     var_info['symbol_address'] = addr
                     var_info['found_in_binary'] = True
                     var_info['symbol_name'] = symbol_name
                     matched_vars.append(var_info)
-                    found_match = True
                     break
-            
-            if not found_match:
+            else:
                 var_info['found_in_binary'] = False
                 matched_vars.append(var_info)
         
         return matched_vars
+    
+    @staticmethod
+    def _symbol_matches(var_name: str, symbol_name: str) -> bool:
+        if symbol_name == var_name:
+            return True
+        if symbol_name.endswith(f"::{var_name}"):
+            return True
+        if symbol_name.endswith(f".{var_name}"):
+            return True
+        return False
     
     def auto_detect_variables(self, cpp_code: str, binary_path: str) -> List[Dict[str, Any]]:
         """Automatically detect all monitorable variables in C++ code and binary."""

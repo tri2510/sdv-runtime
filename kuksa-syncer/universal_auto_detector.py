@@ -280,18 +280,16 @@ class UniversalAutoDetector:
                 print(f"   ✅ Direct match: {var_name} @ 0x{symbols[var_name]:x}")
                 found = True
             else:
-                # Look for partial matches
                 for symbol_name, addr in symbols.items():
-                    # Check if variable name is contained in symbol name
-                    if var_name in symbol_name and len(var_name) > 2:
+                    if self._symbol_matches(var_name, symbol_name):
                         var_info['symbol_address'] = addr
                         var_info['found_in_binary'] = True
                         var_info['symbol_name'] = symbol_name
                         matched_vars.append(var_info)
-                        print(f"   ✅ Partial match: {var_name} -> {symbol_name} @ 0x{addr:x}")
+                        print(f"   ✅ Structured match: {var_name} -> {symbol_name} @ 0x{addr:x}")
                         found = True
                         break
-                
+
                 if not found:
                     var_info['found_in_binary'] = False
                     matched_vars.append(var_info)
@@ -301,6 +299,16 @@ class UniversalAutoDetector:
         print(f"🎯 Result: {len(monitorable)} variables ready for monitoring")
         
         return matched_vars
+
+    @staticmethod
+    def _symbol_matches(var_name: str, symbol_name: str) -> bool:
+        if symbol_name == var_name:
+            return True
+        if symbol_name.endswith(f"::{var_name}"):
+            return True
+        if symbol_name.endswith(f".{var_name}"):
+            return True
+        return False
     
     def auto_detect_project_variables(self, project_dir: Path) -> Tuple[List[Dict], Optional[Path]]:
         """Fully automatic detection for any C++ project."""

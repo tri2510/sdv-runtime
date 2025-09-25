@@ -9,7 +9,7 @@ import subprocess
 import asyncio
 import time
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Dict
 from memory_monitor import ProcessMemoryMonitor, SmartVariableDetector
 from ptrace_memory_reader import MemoryVariableMonitor
 from auto_variable_detector import AutoVariableDetector, SmartMemoryReader
@@ -240,20 +240,16 @@ async def compile_with_makefile():
 def auto_detect_project_variables() -> Tuple[str, Path]:
     """Auto-detect variables from the current project with ZERO hardcoded values."""
     print("🚀 Starting AUTOMATIC project variable detection...")
-    
-    # Try to detect project directory intelligently
-    possible_projects = [
-        # First check if we're in a C++ project directory
-        APP_DIR,
-        # Check for other C++ projects in parent directories
-        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/basic-monitor"),
-        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/cmake-multidir"),
-        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/fcw-advanced"),
-        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/makefile-build"),
-        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/mixed-types"),
-        Path("/home/htr1hc/01_SDV/59_integrate_sdv-runtime_cpp/sdv-runtime-fork/cpp-projects/modular-system"),
-    ]
-    
+
+    # Try to detect project directory intelligently using repo-relative paths
+    repo_root = APP_DIR.parent  # kuksa-syncer/
+    possible_projects = [APP_DIR]
+
+    # Add all cpp-projects/* directories dynamically
+    projects_root = repo_root / "cpp-projects"
+    if projects_root.exists():
+        possible_projects.extend(sorted([path for path in projects_root.iterdir() if path.is_dir()]))
+
     detector = UniversalAutoDetector()
     
     for project_dir in possible_projects:
@@ -349,6 +345,7 @@ async def start_memory_monitoring(watch_vars_str: str, callback=None):
     
     # Parse watch variables - NO hardcoded type assumptions, use actual detection
     watch_vars = {}
+    symbol_mappings: Dict[str, int] = {}
     if watch_vars_str:
         # Get variable types from the project detection using current directory
         detector = UniversalAutoDetector()
@@ -380,7 +377,6 @@ async def start_memory_monitoring(watch_vars_str: str, callback=None):
         print(f"🎯 Initial setup - Final monitoring variables: {list(watch_vars.keys())}")
         
         # Create symbol mappings from auto-detection results for memory monitor
-        symbol_mappings = {}
         for var in project_vars:
             if var['found_in_binary'] and var['name'] in watch_vars:
                 symbol_mappings[var['name']] = var['symbol_address']
@@ -411,6 +407,7 @@ async def get_global_variables(watch_vars_str, pid=None):
     
     # Parse variables to monitor with AUTOMATIC type detection
     variables = {}
+    symbol_mappings: Dict[str, int] = {}
     if watch_vars_str:
         # Get variable types from automatic project detection
         try:
@@ -446,7 +443,6 @@ async def get_global_variables(watch_vars_str, pid=None):
             print(f"🎯 Final monitoring variables: {list(variables.keys())}")
             
             # Create symbol mappings for the variables we're actually monitoring
-            symbol_mappings = {}
             for var in project_vars:
                 if var['found_in_binary'] and var['name'] in variables:
                     symbol_mappings[var['name']] = var['symbol_address']
