@@ -2,20 +2,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from universal_auto_detector import UniversalAutoDetector
 
+from conftest import SAMPLE_PROJECTS, SampleProject
 
-def test_universal_detector_finds_expected_globals(structured_project_dir: Path, structured_project_binary: Path) -> None:
+
+@pytest.mark.parametrize("sample_key", sorted(SAMPLE_PROJECTS.keys()))
+def test_universal_detector_finds_expected_globals(sample_key: str, ensure_sample_built) -> None:
+    sample: SampleProject = SAMPLE_PROJECTS[sample_key]
+    expected_binary = ensure_sample_built(sample)
+
     detector = UniversalAutoDetector()
+    monitorable_vars, binary_path = detector.auto_detect_project_variables(sample.project_dir)
 
-    monitorable_vars, binary_path = detector.auto_detect_project_variables(structured_project_dir)
-
-    assert binary_path == structured_project_binary
+    assert binary_path == expected_binary
 
     names = {var["name"] for var in monitorable_vars if var.get("found_in_binary")}
 
-    # Key telemetry variables should always be present once the project is built.
-    assert {"actual_speed", "battery_voltage", "engine_rpm"}.issubset(names)
-
-    # Sanity check that we aren't returning an empty list when symbols are missing.
-    assert len(names) >= 10
+    # Each sample advertises the key telemetry signals we expect.
+    assert set(sample.expected_vars).issubset(names)
+    assert len(names) >= len(sample.expected_vars)

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import pytest
 
 import cpp_memory_debugger
+
+from conftest import SAMPLE_PROJECTS, SampleProject
 
 
 @dataclass
@@ -23,24 +25,29 @@ class MockSocketIO:
 
 
 @pytest.mark.asyncio
-async def test_ptrace_trace_vars_filters_missing_variables(structured_project_dir, structured_project_binary):
-    request = {
-        "cmd": "trace_vars",
-        "request_from": "pytest-suite",
-        "project_type": "cmake",
-        "project_path": str(structured_project_dir),
-        "binary_name": "vehicle_systems",
-        "trace_vars": ["actual_speed", "battery_voltage", "non_existent_var"],
-        "duration": 1,
-        "skip_build": True,
-        "verbose": False,
-    }
+@pytest.mark.parametrize("sample_key", sorted(SAMPLE_PROJECTS.keys()))
+async def test_ptrace_trace_vars_filters_missing_variables(sample_key: str, ensure_sample_built) -> None:
+    sample: SampleProject = SAMPLE_PROJECTS[sample_key]
+    ensure_sample_built(sample)
+
+    focus_vars = sample.expected_vars[: min(len(sample.expected_vars), 3)]
+    requested_vars = focus_vars + ["__nonexistent__"]
 
     socket = MockSocketIO()
 
     await cpp_memory_debugger.start_cpp_trace_vars_monitoring(
-        data=request,
-        request_from="pytest-suite",
+        data={
+            "cmd": "trace_vars",
+            "request_from": f"pytest-{sample.key}",
+            "project_type": sample.project_type,
+            "project_path": str(sample.project_dir),
+            "binary_name": sample.binary_relative.name,
+            "trace_vars": requested_vars,
+            "duration": 1,
+            "skip_build": True,
+            "verbose": False,
+        },
+        request_from=f"pytest-{sample.key}",
         socketio=socket,
     )
 
@@ -50,22 +57,20 @@ async def test_ptrace_trace_vars_filters_missing_variables(structured_project_di
         if event.event == "messageToKit-kitReply" and event.data.get("cmd") == "trace_vars"
     ]
 
-    assert trace_payloads, "expected at least one trace_vars update"
+    assert trace_payloads, f"expected at least one trace_vars update for {sample.key}"
 
-    # Every payload should include only the variables that were successfully resolved.
     for payload in trace_payloads:
         variables = payload.get("data", {})
-        assert set(variables.keys()).issuperset({"actual_speed", "battery_voltage"})
-        assert "non_existent_var" not in variables
-        for key in ("actual_speed", "battery_voltage"):
+        assert set(focus_vars).issubset(variables.keys())
+        assert "__nonexistent__" not in variables
+        for key in focus_vars:
             value = variables[key]
-            assert isinstance(value, (int, float))
+            assert isinstance(value, (int, float)), f"{key} should be numeric"
 
-    # Ensure the session completed cleanly (monitor reports a completion message at the end).
     completed = any(
         event.event == "messageToKit-kitReply"
         and event.data.get("cmd") == "run_cpp_app"
         and "completed" in (event.data.get("data") or "").lower()
         for event in socket.events
     )
-    assert completed, "trace_vars session did not report completion"
+    assert completed, f"trace_vars session did not report completion for {sample.key}"
