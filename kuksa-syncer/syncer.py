@@ -762,8 +762,10 @@ async def messageToKit(data):
                             # For Python apps, kill the process
                             if hasattr(proc, 'kill'):
                                 proc.kill()
+                            elif hasattr(proc, 'cancel'):
+                                proc.cancel()
                             else:
-                                print(f"Process {proc} doesn't have kill method")
+                                print(f"Process {proc} cannot be terminated (no kill/cancel)")
                         
                         lsOfRunner.remove(runner)
                         python_stopped = True
