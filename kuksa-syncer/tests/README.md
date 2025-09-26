@@ -5,7 +5,6 @@ This folder holds the automated regression tests for the ptrace-enabled C++ runt
 ## What gets covered
 - **Variable discovery** – `test_variable_detection.py` builds each example project and ensures all expected global signals are discoverable in the compiled binary.
 - **Trace streaming** – `test_trace_vars_monitor.py` starts `start_cpp_trace_vars_monitoring` for each sample project and asserts that ptrace delivers values for the requested signals while filtering unknown names.
-- **Python runtime guardrail** – `test_python_runtime.py` verifies the legacy `run_python_app` flow still spawns `subpiper` and tracks the runner.
 
 ## How to run
 From the repository root, install the requirements (ideally inside a virtualenv) and execute:

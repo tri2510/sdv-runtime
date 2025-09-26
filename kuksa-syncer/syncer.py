@@ -17,7 +17,6 @@ from kuksa_client.grpc import MetadataField
 from kuksa_client.grpc import EntryType
 import socketio
 import asyncio
-from subpiper import subpiper
 import time
 import os
 import sys
@@ -713,87 +712,25 @@ async def messageToKit(data):
         return 0
             
     if data["cmd"] == "run_python_app":
-        # Original Python app execution - unchanged behavior
-        # check do we have data["data"]["code"]
-        if "code" not in data["data"]:
-            await sio.emit("messageToKit-kitReply", {
-                "kit_id": CLIENT_ID,
-                "request_from": data["request_from"],
-                "cmd": "run_python_app",
-                "result": "Error: Missing code",
-                "data": ""
-            })
-            return 1
-        appName = "App name"
-        if "name" in data["data"]:
-            appName = data["data"]["name"]
-        
-        writeCodeToFile(data["data"]["code"], filename="main.py")
-        try:
-            usedAPIs = data["usedAPIs"]
-            if isinstance(usedAPIs,list) and len(usedAPIs)>0:
-                appendMockSignal(usedAPIs)
-        except Exception as e:
-            print("Fail to appendMockSignal for usedAPIs")
-            print(str(e))
-
-        proc = subpiper(
-            master_id=data["request_from"],
-            cmd='python -u main.py',
-            stdout_callback=my_stdout_callback,
-            stderr_callback=my_stderr_callback,
-            finished_callback=process_done
+        await send_reply(
+            data["request_from"],
+            "Python execution is disabled in this runtime\r\n",
+            is_error=True,
+            is_done=True,
+            retcode=1,
+            cmd="run_python_app",
         )
-        lsOfRunner.append({
-            "appName": appName,
-            "runner": proc,
-            "request_from": data["request_from"],
-            "from": time.time()
-        })
         return 0
     
     if data["cmd"] == "run_bin_app":
-        if "data" not in data:
-            await sio.emit("messageToKit-kitReply", {
-                "kit_id": CLIENT_ID,
-                "request_from": data["request_from"],
-                "cmd": "run_bin_app",
-                "result": "Error: Missing app name",
-                "data": ""
-            }) 
-            return 1
-        app_name = data["data"]
-        if os.path.isfile(f'/home/dev/output/{app_name}'):
-            try:
-                usedAPIs = data["usedAPIs"]
-                if isinstance(usedAPIs,list) and len(usedAPIs)>0:
-                    appendMockSignal(usedAPIs)
-            except Exception as e:
-                print("Fail to appendMockSignal for usedAPIs")
-                print(str(e))
-                
-            await asyncio.sleep(0.5)
-            proc = subpiper(
-                master_id=data["request_from"],
-                cmd=f'/home/dev/output/{app_name}',
-                stdout_callback=my_stdout_callback,
-                stderr_callback=my_stderr_callback,
-                finished_callback=process_done
-            )
-            lsOfRunner.append({
-                "appName": app_name,
-                "runner": proc,
-                "request_from": data["request_from"],
-                "from": time.time()
-            })
-        else:
-            await sio.emit("messageToKit-kitReply", {
-                "kit_id": CLIENT_ID,
-                "request_from": data["request_from"],
-                "cmd": "run_bin_app",
-                "result": "Failed: Rust app not found",
-                "data": ""
-            }) 
+        await send_reply(
+            data["request_from"],
+            "Binary execution via syncer is disabled\r\n",
+            is_error=True,
+            is_done=True,
+            retcode=1,
+            cmd="run_bin_app",
+        )
         return 0
     
     elif data["cmd"] in ("stop_python_app", "stop_cpp_app"):
