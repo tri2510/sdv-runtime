@@ -65,7 +65,7 @@ except ImportError as e:
     print(f"Warning: C++ memory monitoring not available: {e}")
     CPP_MEMORY_AVAILABLE = False
 
-KUKSA_DISABLED = os.getenv('KUKSA_DISABLED', '0') == '1'
+KUKSA_DISABLED = os.getenv('KUKSA_DISABLED', '1') != '0'
 
 if KUKSA_DISABLED:
     print('⚠️  KUKSA integration disabled via KUKSA_DISABLED=1', flush=True)

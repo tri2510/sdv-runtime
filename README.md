@@ -54,6 +54,16 @@ docker run -d -e RUNTIME_NAME="MyRuntimeName" -e SYNCER_SERVER_URL="YOUR_SERVER"
 docker run -d -e RUNTIME_NAME="MyRuntimeName" -e SYNCER_SERVER_URL="http://localhost:3090" -p 3090:3090 ghcr.io/eclipse-autowrx/sdv-runtime:latest
 ```
 
+### Kuksa integration toggle
+
+This trimmed branch disables all Kuksa/mocked-signal interactions by default (`KUKSA_DISABLED=1`).
+If you need the databroker features back, override the variable when starting the syncer or container:
+
+```
+export KUKSA_DISABLED=0
+python -m kuksa-syncer.syncer
+```
+
 
 
 # How to build docker image
